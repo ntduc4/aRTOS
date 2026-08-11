@@ -9,6 +9,10 @@
 - [ ] Week 8: queue-based final demo works
 - [ ] Week 9-12: debug, priority scheduling, docs, polish, and slack
 
+## Week 0: Reading
+
+- [ ] Review old course on linux kernel
+
 ## Week 1: Board Bring-Up
 
 - [ ] Create PlatformIO project for the target STM32 Nucleo board
