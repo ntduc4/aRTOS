@@ -9,7 +9,7 @@
 - [x] Flash firmware with ST-Link
 - [x] Verify `pio device monitor` works
 - [x] Verify debugger connection with `pio debug`
-- [ ] Blink onboard LED `[C]`
+- [x] Blink onboard LED `[C]`
 - [ ] Configure UART output `[C]`
 - [ ] Print `boot ok` over serial `[C]`
 - [ ] Document build, flash, monitor, and debug commands `[C]`
