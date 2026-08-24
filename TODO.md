@@ -1,285 +1,164 @@
-# STM32 RTOS Milestone Checklist
+# aRTOS — Milestone Checklist
 
-## Milestone Targets
-
-- [ ] Week 4: cooperative task switching works with PendSV
-- [ ] Week 5: preemptive scheduling works with SysTick
-- [ ] Week 6: blocking delay works
-- [ ] Week 7: semaphore and button ISR demo work
-- [ ] Week 8: queue-based final demo works
-- [ ] Week 9-12: debug, priority scheduling, docs, polish, and slack
-
-## Week 0: Reading
-
-- [ ] Review old course on linux kernel
+**Priority key:** `[C]` = Critical path (must land for demo), `[S]` = Stretch (nice to have)
 
 ## Week 1: Board Bring-Up
-
-- [ ] Create PlatformIO project for the target STM32 Nucleo board
-- [ ] Configure `platformio.ini`
-- [ ] Build firmware successfully with `pio run`
-- [ ] Flash firmware with ST-Link
-- [ ] Blink onboard LED
-- [ ] Configure UART output
-- [ ] Print `boot ok` over serial
-- [ ] Verify `pio device monitor` works
-- [ ] Verify debugger connection with `pio debug`
-- [ ] Document build, flash, monitor, and debug commands
+- [x] Create PlatformIO project for target STM32 Nucleo board
+- [x] Configure `platformio.ini`
+- [x] Build firmware successfully with `pio run`
+- [x] Flash firmware with ST-Link
+- [x] Verify `pio device monitor` works
+- [x] Verify debugger connection with `pio debug`
+- [ ] Blink onboard LED `[C]`
+- [ ] Configure UART output `[C]`
+- [ ] Print `boot ok` over serial `[C]`
+- [ ] Document build, flash, monitor, and debug commands `[C]`
 
 ## Week 2: Kernel Skeleton and Task Model
+- [ ] Create RTOS folder structure `[C]`
+- [ ] Create public RTOS header `[C]`
+- [ ] Create `rtos_config.h` `[C]`
+- [ ] Define maximum task count `[C]`
+- [ ] Define default tick rate `[C]`
+- [ ] Define task function type `[C]`
+- [ ] Define task states `[C]`
+- [ ] Define task control block `[C]`
+- [ ] Add task stack pointer, base, and size fields to TCB `[C]`
+- [ ] Implement static task table `[C]`
+- [ ] Implement `rtos_init()` `[C]`
+- [ ] Implement basic `rtos_task_create()` `[C]`
+- [ ] Validate task count limit, stack pointer, stack size `[C]`
+- [ ] Return clear error codes `[C]`
 
-- [ ] Create RTOS folder structure
-- [ ] Create public RTOS header
-- [ ] Create `rtos_config.h`
-- [ ] Define maximum task count
-- [ ] Define default tick rate
-- [ ] Define task function type
-- [ ] Define task states
-- [ ] Define task control block
-- [ ] Add task stack pointer field to TCB
-- [ ] Add task stack base field to TCB
-- [ ] Add task stack size field to TCB
-- [ ] Implement static task table
-- [ ] Implement `rtos_init()`
-- [ ] Implement basic `rtos_task_create()`
-- [ ] Validate task count limit
-- [ ] Validate stack pointer input
-- [ ] Validate stack size input
-- [ ] Return clear error codes from task creation
-
-## Week 3: Task Stack Initialization and First Task Start
-
-- [ ] Define Cortex-M exception stack frame layout
-- [ ] Initialize task stack with xPSR
-- [ ] Initialize task stack with PC
-- [ ] Initialize task stack with LR
-- [ ] Initialize task stack with R0 argument
-- [ ] Initialize task stack with R1, R2, R3, and R12
-- [ ] Reserve space for R4 to R11
-- [ ] Store initial stack pointer in TCB
-- [ ] Add task exit trap handler
-- [ ] Fill task stack with debug pattern
-- [ ] Verify 8-byte stack alignment
-- [ ] Configure first task to run using PSP
-- [ ] Keep exceptions running on MSP
-- [ ] Implement initial task launch path
-- [ ] Start first task manually
-- [ ] Confirm first task runs from its own stack
+## Week 3: Stack Initialization and First Task Start
+- [ ] Define Cortex-M exception stack frame layout `[C]`
+- [ ] Initialize task stack: xPSR, PC, LR, R0–R3, R12 `[C]`
+- [ ] Reserve space for R4–R11 `[C]`
+- [ ] Store initial stack pointer in TCB `[C]`
+- [ ] Add task exit trap handler `[C]`
+- [ ] Fill task stack with debug pattern `[C]`
+- [ ] Verify 8-byte stack alignment `[C]`
+- [ ] Configure PSP for first task; keep MSP for exceptions `[C]`
+- [ ] Implement initial task launch path `[C]`
+- [ ] Confirm first task runs from its own stack `[C]`
 
 ## Week 4: PendSV Cooperative Context Switch
+- [ ] Implement `rtos_start()` `[C]`
+- [ ] Implement `rtos_yield()` → triggers PendSV `[C]`
+- [ ] Set PendSV to lowest interrupt priority `[C]`
+- [ ] Implement round-robin next-task selection `[C]`
+- [ ] Implement `PendSV_Handler`: save R4–R11 of current task `[C]`
+- [ ] Store current SP in TCB; restore next SP from TCB `[C]`
+- [ ] Restore R4–R11 of next task; return into next task `[C]`
+- [ ] Run two cooperative tasks; confirm alternation via `rtos_yield()` `[C]`
 
-- [ ] Implement `rtos_start()`
-- [ ] Implement `rtos_yield()`
-- [ ] Trigger PendSV from `rtos_yield()`
-- [ ] Set PendSV to lowest interrupt priority
-- [ ] Implement round-robin next-task selection
-- [ ] Implement `PendSV_Handler`
-- [ ] Save R4 to R11 of current task
-- [ ] Store current task stack pointer
-- [ ] Select next ready task
-- [ ] Restore next task stack pointer
-- [ ] Restore R4 to R11 of next task
-- [ ] Return from exception into next task
-- [ ] Run two cooperative tasks
-- [ ] Confirm tasks switch when calling `rtos_yield()`
-- [ ] Confirm UART output alternates between two tasks
-- [ ] Confirm each task uses its own stack
+## Week 5: SysTick Preemption + Critical Sections + Idle + Fault Handler
 
-## Week 5: SysTick Preemption
+### Preemption
+- [ ] Configure SysTick timer at 1 kHz `[C]`
+- [ ] Implement global tick counter `[C]`
+- [ ] `SysTick_Handler`: increment tick, pend PendSV `[C]`
+- [ ] Ensure PendSV has lower priority than SysTick `[C]`
+- [ ] Verify automatic task switching without manual yield `[C]`
+- [ ] Confirm a busy task does not starve others `[C]`
 
-- [ ] Configure SysTick timer
-- [ ] Set RTOS tick rate to 1 kHz
-- [ ] Implement global tick counter
-- [ ] Implement `SysTick_Handler`
-- [ ] Increment tick count in SysTick
-- [ ] Trigger PendSV from SysTick
-- [ ] Ensure PendSV has lower priority than SysTick
-- [ ] Ensure SysTick does not perform heavy scheduling work
-- [ ] Verify automatic task switching
-- [ ] Run two tasks without manual yield
-- [ ] Confirm a busy task does not starve other tasks
-- [ ] Implement `rtos_get_tick()`
-- [ ] Confirm tick counter increments correctly
-- [ ] Confirm preemption still works with UART logging disabled
+### Critical sections (needed here, not later)
+- [ ] Implement `rtos_irq_save()` / `rtos_irq_restore()` `[C]`
+- [ ] Preserve previous interrupt state `[C]`
+- [ ] Protect task table updates `[C]`
+- [ ] Protect scheduler state updates `[C]`
 
-## Week 6: Blocking Delay and Idle Task
+### Idle task (minimal)
+- [ ] Add idle task with `while(1) { __WFI(); }` `[C]`
+- [ ] Ensure idle task is selected when no other task is ready `[C]`
 
-- [ ] Add blocked task state handling
-- [ ] Add delay tick field to TCB
-- [ ] Implement `rtos_delay_ticks()`
-- [ ] Implement `rtos_delay_ms()`
-- [ ] Move delayed task to blocked state
-- [ ] Trigger scheduler after delay call
-- [ ] Decrement task delays from SysTick
-- [ ] Move expired blocked tasks back to ready state
-- [ ] Add idle task
-- [ ] Run idle task when no user task is ready
-- [ ] Run LED task with `rtos_delay_ms(500)`
-- [ ] Run logger task with `rtos_delay_ms(1000)`
-- [ ] Confirm delayed tasks do not busy wait
-- [ ] Confirm preemption works while some tasks are blocked
-- [ ] Confirm system keeps running when all user tasks are delayed
+### Fault handling (basic, saves debugging time)
+- [ ] Add basic `HardFault_Handler` capturing PC, LR, SP `[C]`
+- [ ] Optionally print captured fault info or breakpoint loop `[C]`
 
-## Week 7: Critical Sections and Binary Semaphore
+### Verification
+- [ ] Confirm preemption works with UART logging disabled `[C]`
+- [ ] Confirm idle task runs `[C]`
 
-- [ ] Implement `rtos_irq_save()`
-- [ ] Implement `rtos_irq_restore()`
-- [ ] Preserve previous interrupt state
-- [ ] Protect task table updates
-- [ ] Protect scheduler state updates
-- [ ] Protect blocked task updates
-- [ ] Define semaphore type
-- [ ] Add semaphore count field
-- [ ] Add semaphore waiting task storage
-- [ ] Implement `rtos_sem_init()`
-- [ ] Implement `rtos_sem_wait()`
-- [ ] Block task when semaphore is unavailable
-- [ ] Implement `rtos_sem_signal()`
-- [ ] Wake one waiting task on signal
-- [ ] Add ISR-safe semaphore signal path
-- [ ] Configure button interrupt
-- [ ] Signal semaphore from button interrupt
-- [ ] Wake button task from semaphore
-- [ ] Print button event over UART
+## Week 6: Blocking Delay
+- [ ] Add blocked state handling `[C]`
+- [ ] Add delay tick field to TCB `[C]`
+- [ ] Implement `rtos_delay_ticks()` and `rtos_delay_ms()` `[C]`
+- [ ] Move delayed task to blocked state; trigger scheduler `[C]`
+- [ ] Decrement task delays from SysTick; move expired tasks back to ready `[C]`
+- [ ] Refine idle task (optional: measure idle cycles) `[C]`
+- [ ] Run LED task (`delay_ms(500)`) + logger task (`delay_ms(1000)`) `[C]`
+- [ ] Confirm delayed tasks do not busy-wait `[C]`
+- [ ] Confirm system keeps running when all user tasks are blocked `[C]`
 
-## Week 8: Message Queue and Showcase Demo Baseline
+## Week 7: Binary Semaphore + Button ISR
+- [ ] Define semaphore type: count + waiting task storage `[C]`
+- [ ] Implement `rtos_sem_init()`, `rtos_sem_wait()`, `rtos_sem_signal()` `[C]`
+- [ ] Block task when semaphore unavailable; wake one on signal `[C]`
+- [ ] Add ISR-safe semaphore signal path `[C]`
+- [ ] Configure button EXTI interrupt `[C]`
+- [ ] Signal semaphore from button ISR; wake button task `[C]`
+- [ ] Print button event over UART `[C]`
 
-- [ ] Define queue type
-- [ ] Add queue buffer pointer
-- [ ] Add item size field
-- [ ] Add queue capacity field
-- [ ] Add head index
-- [ ] Add tail index
-- [ ] Add item count
-- [ ] Protect queue state updates
-- [ ] Implement `rtos_queue_create()`
-- [ ] Implement `rtos_queue_send()`
-- [ ] Implement `rtos_queue_recv()`
-- [ ] Block receiver when queue is empty
-- [ ] Wake receiver when item is sent
-- [ ] Return error when queue is full
-- [ ] Create heartbeat event producer
-- [ ] Create button event producer
-- [ ] Create logger task
-- [ ] Send heartbeat events through queue
-- [ ] Send button events through queue
-- [ ] Print received events over UART
-- [ ] Run LED task
-- [ ] Run heartbeat task
-- [ ] Run button task
-- [ ] Run logger task
-- [ ] Run low-priority load task
-- [ ] Confirm preemption works
-- [ ] Confirm blocking delays work
-- [ ] Confirm semaphore works
-- [ ] Confirm queue works
+## Week 8: Message Queue + Showcase Demo
+- [ ] Define queue type: buffer, item size, capacity, head, tail, count `[C]`
+- [ ] Protect queue state with critical sections `[C]`
+- [ ] Implement `rtos_queue_create()`, `rtos_queue_send()`, `rtos_queue_recv()` `[C]`
+- [ ] Block receiver on empty queue; wake on send `[C]`
+- [ ] Return error on full queue `[C]`
+- [ ] Create heartbeat producer, button producer, logger consumer `[C]`
+- [ ] Send heartbeat and button events through queue `[C]`
+- [ ] Print received events over UART `[C]`
+- [ ] Run final demo: LED + heartbeat + button + logger + low-pri load `[C]`
+- [ ] Confirm preemption, blocking delays, semaphore, and queue all work `[C]`
 
-## Week 9: Debugging and Stability Buffer
+## Week 9: Debugging and Stability
+- [ ] Add task name field to TCB (for debugging) `[S]`
+- [ ] Implement `rtos_dump_tasks()` printing name, state, SP, delay ticks `[S]`
+- [ ] Add stack watermark and overflow guard checking `[S]`
+- [ ] Implement RTOS assert handler `[S]`
+- [ ] Refine `HardFault_Handler` with full register capture `[S]`
+- [ ] Fix context switching, queue, or semaphore bugs found in testing `[C]`
+- [ ] Confirm demo runs for ≥10 minutes without crashing `[C]`
 
-- [ ] Add task name field to TCB
-- [ ] Implement `rtos_dump_tasks()`
-- [ ] Print task name
-- [ ] Print task state
-- [ ] Print task stack pointer
-- [ ] Print task delay ticks
-- [ ] Add stack watermark checking
-- [ ] Print task stack usage
-- [ ] Add stack overflow guard check
-- [ ] Implement RTOS assert handler
-- [ ] Add basic HardFault handler
-- [ ] Store fault PC
-- [ ] Store fault LR
-- [ ] Store fault PSR
-- [ ] Store fault stack pointer
-- [ ] Confirm task dump works over UART
-- [ ] Fix context switching bugs found during testing
-- [ ] Fix queue or semaphore bugs found during testing
-- [ ] Confirm demo runs for at least 10 minutes without crashing
+## Week 10: Optional — Priority Scheduling
+- [ ] Add priority field to TCB; update `rtos_task_create()` to accept priority `[S]`
+- [ ] Implement highest-priority-ready task selection `[S]`
+- [ ] Preserve round-robin among equal-priority tasks `[S]`
+- [ ] Create high-pri button / med-pri logger / low-pri load tasks `[S]`
+- [ ] Confirm high-pri preempts low-pri; low-pri runs when higher tasks block `[S]`
+- [ ] Confirm delay and semaphore wake-up respect priority `[S]`
+- [ ] Document priority inversion as a known limitation `[S]`
 
-## Week 10: Optional Priority Scheduling
-
-- [ ] Add priority field to TCB
-- [ ] Update task creation API to accept priority
-- [ ] Implement highest-priority-ready task selection
-- [ ] Preserve round-robin behavior among equal-priority tasks
-- [ ] Create high-priority button task
-- [ ] Create medium-priority logger task
-- [ ] Create low-priority load task
-- [ ] Confirm high-priority task preempts low-priority task
-- [ ] Confirm low-priority task runs when higher-priority tasks are blocked
-- [ ] Confirm equal-priority tasks share CPU
-- [ ] Confirm delay wake-up respects priority
-- [ ] Confirm semaphore wake-up respects priority
-- [ ] Document priority inversion as a limitation
-
-## Week 11: Polish, Cleanup, and Extra Debug Slack
-
-- [ ] Clean up public RTOS API
-- [ ] Clean up internal headers
-- [ ] Remove unused code
-- [ ] Rename unclear functions
-- [ ] Rename unclear variables
-- [ ] Add comments only where low-level behavior is not obvious
-- [ ] Verify project builds from clean checkout
-- [ ] Verify firmware flashes successfully
-- [ ] Verify serial monitor output
-- [ ] Run final demo for at least 30 minutes
-- [ ] Fix timing bugs
-- [ ] Fix race condition bugs
-- [ ] Fix HardFault issues
-- [ ] Fix UART logging issues
-- [ ] Fix stack size issues
-- [ ] Record known limitations
-- [ ] Record future work items
+## Week 11: Polish and Cleanup
+- [ ] Clean up API headers; remove unused code `[C]`
+- [ ] Rename unclear functions/variables `[C]`
+- [ ] Add comments where low-level behavior is non-obvious `[C]`
+- [ ] Verify clean build, flash, and serial monitor `[C]`
+- [ ] Run final demo for ≥30 minutes `[C]`
+- [ ] Fix any remaining timing, race, HardFault, stack, or UART issues `[C]`
+- [ ] Record known limitations and future work `[C]`
 
 ## Week 12: Final Demo and Documentation
+- [ ] Finalize `README.md` with build/flash/monitor/debug instructions `[C]`
+- [ ] Write architecture, scheduler, context switch, and sync notes `[C]`
+- [ ] Write limitations and future work sections `[C]`
+- [ ] Add final demo description and sample UART output `[C]`
+- [ ] Record short demo video or GIF `[C]`
+- [ ] Confirm final firmware builds, flashes, and runs reliably `[C]`
+- [ ] Tag final version in Git; final repository cleanup `[C]`
 
-- [ ] Finalize `README.md`
-- [ ] Write build instructions
-- [ ] Write flash instructions
-- [ ] Write serial monitor instructions
-- [ ] Write debug instructions
-- [ ] Write architecture notes
-- [ ] Write scheduler notes
-- [ ] Write context switch notes
-- [ ] Write synchronization notes
-- [ ] Write limitations section
-- [ ] Write future work section
-- [ ] Add final demo description
-- [ ] Add final demo UART output sample
-- [ ] Record short demo video or GIF
-- [ ] Confirm final firmware builds
-- [ ] Confirm final firmware flashes
-- [ ] Confirm final demo runs reliably
-- [ ] Tag final version in Git
-- [ ] Do final repository cleanup
+---
 
-## Final Completion Checklist
+## Critical path summary
 
-- [ ] Firmware builds with PlatformIO
-- [ ] Firmware flashes to STM32 Nucleo
-- [ ] UART logging works
-- [ ] Multiple tasks run
-- [ ] Tasks use separate stacks
-- [ ] Tasks run on PSP
-- [ ] Exceptions run on MSP
-- [ ] PendSV context switch works
-- [ ] SysTick preemption works
-- [ ] Round-robin scheduling works
-- [ ] Blocking delay works
-- [ ] Critical sections work
-- [ ] Binary semaphore works
-- [ ] Message queue works
-- [ ] Idle task works
-- [ ] Task dump works
-- [ ] Stack watermark checking works
-- [ ] Final demo runs reliably
+If time runs short, land in this order:
 
-## Optional Completion Checklist
+1. **Weeks 1–4**: boot, UART, TCB, stack init, cooperative PendSV
+2. **Week 5**: preemption + critical sections + idle + fault handler
+3. **Week 6**: blocking delay
+4. **Week 7**: semaphore + button
+5. **Week 8**: queue + all-tasks demo
+6. **Week 11–12**: polish + docs + demo video
 
-- [ ] Priority scheduling works
-- [ ] HardFault capture works
-- [ ] CPU idle estimate works
-- [ ] Host-side scheduler tests work
-- [ ] Host-side queue tests work
-- [ ] Demo video or GIF is recorded
+Everything tagged `[S]` is safe to cut or defer. The demo is still a compelling resume piece without them.

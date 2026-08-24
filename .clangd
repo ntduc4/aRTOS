@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - --target=arm-none-eabi
+    - -mthumb
+    - -mcpu=cortex-m4
+    - -mfpu=fpv4-sp-d16
+    - -mfloat-abi=hard
+    - -I/home/ntd/.platformio/packages/framework-cmsis-stm32f4/Include
+    - -DSTM32F446xx
+    - -I/home/ntd/.platformio/packages/framework-cmsis/CMSIS/Core/Include
