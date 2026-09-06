@@ -12,7 +12,7 @@
 - [x] Blink onboard LED `[C]`
 - [x] Configure UART output `[C]`
 - [x] Print `boot ok` over serial `[C]`
-- [ ] Document build, flash, monitor, and debug commands `[C]`
+- [x] Document build, flash, monitor, and debug commands `[C]`
 
 ## Week 2: Kernel Skeleton and Task Model
 - [ ] Create RTOS folder structure `[C]`
