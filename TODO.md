@@ -10,8 +10,8 @@
 - [x] Verify `pio device monitor` works
 - [x] Verify debugger connection with `pio debug`
 - [x] Blink onboard LED `[C]`
-- [ ] Configure UART output `[C]`
-- [ ] Print `boot ok` over serial `[C]`
+- [x] Configure UART output `[C]`
+- [x] Print `boot ok` over serial `[C]`
 - [ ] Document build, flash, monitor, and debug commands `[C]`
 
 ## Week 2: Kernel Skeleton and Task Model
