@@ -12,14 +12,14 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                uint32_t stack_word_count) {
   if (stack == NULL || entry == NULL)
     return RTOS_ERROR_INVALID_ARGUMENT;
-  if (((uintptr_t)stack & 0b111U) != 0U)
+  rtos_stack_word_t *stack_top = stack + stack_word_count;
+  if (((uintptr_t)(stack_top) & 0b111U) != 0U)
     return RTOS_ERROR_INVALID_ARGUMENT;
   if (stack_word_count < RTOS_MIN_STACK_WORDS)
     return RTOS_ERROR_STACK_TOO_SMALL;
 
   for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
     if (task_table[i].state == RTOS_TASK_UNUSED) {
-      rtos_stack_word_t *stack_top = stack + stack_word_count;
       rtos_tcb_t new_tcb = {.stack_pointer = rtos_port_initialize_stack(
                                 stack_top, entry, argument),
                             .stack_buffer = stack,

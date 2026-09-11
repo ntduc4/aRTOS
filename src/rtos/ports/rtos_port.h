@@ -1,8 +1,6 @@
 #ifndef RTOS_PORT_H
 #define RTOS_PORT_H
 
-#include <stdint.h>
-
 #include "rtos.h"
 
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
