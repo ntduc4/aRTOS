@@ -1,6 +1,5 @@
 #include "rtos_port.h"
-#include "cmsis_compiler.h"
-#include <stdint.h>
+#include "cmsis_gcc.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
@@ -17,7 +16,6 @@ static void rtos_port_task_return_trap(void) {
     __WFI();
 }
 
-// TO BE IMPLEMENT
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
                                               rtos_task_fn_t entry,
                                               void *argument) {
@@ -37,4 +35,30 @@ rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
     *(--stack_top) = 0U;
 
   return stack_top;
+}
+
+void rtos_port_start_first_task(rtos_stack_word_t *saved_stack_pointer) {
+  // PSP initially have software-saved registers
+  __set_PSP((uint32_t)(uintptr_t)saved_stack_pointer);
+
+  // Make SVC able to execute
+  __enable_irq();
+
+  // Enger handler mode so EXC_RETURN can be used
+  __asm volatile("svc 0" ::: "memory");
+
+  // Should not execute here
+  for (;;) {
+  }
+}
+
+// Overwrite weak default from cmsis
+void SVC_Handler(void) __attribute__((naked));
+
+void SVC_Handler(void) {
+  __asm volatile("mrs r0, psp \n"
+                 "ldmia r0!, {r4-r11, lr} \n"
+                 "msr psp, r0 \n"
+                 "isb \n"
+                 "bx lr \n");
 }

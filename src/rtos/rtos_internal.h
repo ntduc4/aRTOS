@@ -23,4 +23,10 @@ typedef struct {
   rtos_task_state_t state;
 } rtos_tcb_t;
 
+void rtos_task_system_init(void);
+void rtos_scheduler_init(void);
+
+rtos_tcb_t *rtos_task_at(uint32_t index);
+rtos_tcb_t *rtos_scheduler_select_next(void);
+
 #endif // !RTOS_INTERNAL_H

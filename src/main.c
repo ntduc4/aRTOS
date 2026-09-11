@@ -1,7 +1,15 @@
+#include "rtos.h"
 #include "stm32f446xx.h"
 #include <stdint.h>
 
-void setup() {
+#define TASK_STACK_WORDS 128U
+
+static rtos_stack_word_t led_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
+static rtos_stack_word_t usart_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
+
+void setup_gpio() {
   // GPIOA clock enable (ref manual 6.3.10)
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
@@ -46,20 +54,47 @@ void USART2_write_char(char c) {
   USART2->DR = (uint8_t)c;
 }
 
-int main() {
-  setup();
-  setup_USART2();
-
-  char str[] = "Hello worlds!";
-  for (int i = 0; str[i] != '\0'; i++)
-    USART2_write_char(str[i]);
-
+static void led_task(void *argument) {
   // Blink
-  while (1) {
+  for (;;) {
     // Atomic write instead of using ODR (ref manual 7.3.5)
     GPIOA->BSRR |= 1 << 5;
     delay(500000);
     GPIOA->BSRR |= 1 << (5 + 16);
     delay(500000);
+  }
+}
+
+static void usart_task(void *argument) {
+  char str[] = "Hello worlds!\n";
+  for (;;) {
+    for (int i = 0; str[i] != '\0'; i++)
+      USART2_write_char(str[i]);
+    delay(1000000U);
+  }
+}
+
+int main() {
+  setup_gpio();
+  setup_USART2();
+
+  rtos_init();
+
+  rtos_status_t status1 =
+      rtos_task_create(led_task, NULL, led_stack, TASK_STACK_WORDS);
+  if (status1 != RTOS_OK)
+    for (;;) {
+    }
+
+  rtos_status_t status2 =
+      rtos_task_create(usart_task, NULL, usart_stack, TASK_STACK_WORDS);
+  if (status2 != RTOS_OK)
+    for (;;) {
+    }
+
+  rtos_start();
+
+  // Just in case
+  for (;;) {
   }
 }

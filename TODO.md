@@ -15,9 +15,9 @@
 - [x] Implement validated static task creation with clear status codes `[C]`
 
 ## Week 3: Task Initialization and Startup
-- [ ] Implement Cortex-M task stack initialization and basic stack diagnostics `[C]`
-- [ ] Implement the first-task launch path using the process stack `[C]`
-- [ ] Verify a task starts and runs from its own stack `[C]`
+- [x] Implement Cortex-M task stack initialization and basic stack diagnostics `[C]`
+- [x] Implement the first-task launch path using the process stack `[C]`
+- [x] Verify a task starts and runs from its own stack `[C]`
 
 ## Week 4: Cooperative Scheduling
 - [ ] Implement kernel startup, yielding, and round-robin scheduling `[C]`
