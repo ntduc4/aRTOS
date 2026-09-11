@@ -13,8 +13,16 @@ typedef enum {
   RTOS_ERROR_STACK_TOO_SMALL
 } rtos_status_t;
 
+typedef uintptr_t rtos_stack_word_t;
+
 // Static task allocation
+// `stack` should be 8 bytes aligned
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
-                               uint32_t *stack, uint32_t stack_word_count);
+                               rtos_stack_word_t *stack,
+                               uint32_t stack_word_count);
+// TO BE IMPLEMENT
+void rtos_start(void);
+// void rtos_wait(void);
+// void rtos_yield(void);
 
 #endif // !RTOS_H
