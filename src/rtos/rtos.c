@@ -8,7 +8,7 @@ void rtos_init(void) {
 }
 
 void rtos_start(void) {
-  rtos_tcb_t *first_task = rtos_scheduler_select_next();
+  rtos_tcb_t *first_task = rtos_scheduler_start();
   if (first_task == NULL)
     return;
 

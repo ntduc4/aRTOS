@@ -1,6 +1,7 @@
 #include "rtos_port.h"
 #include "cmsis_gcc.h"
 #include "rtos.h"
+#include "stm32f446xx.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
@@ -63,3 +64,31 @@ void SVC_Handler(void) {
                  "isb \n"
                  "bx lr \n");
 }
+
+void PendSV_Handler(void) __attribute__((naked));
+
+// - Move psp -> r0
+// - Store software-saved register to r0, decrease before since stack top point
+//   to current top of stack (stack grow downard)
+//
+// - Call scheduler ???
+//
+// - Load software-saved register from r0, increase after since stack top point
+//   to current top of stack (stack grow downard)
+// - Move r0 -> psp
+void PendSV_Handler(void) {
+  __asm volatile("mrs r0, psp \n"
+                 "stmdb r0!, {r4-r11, lr} \n"
+                 "bl rtos_scheduler_switch_context \n"
+                 "ldmia r0!, {r4-r11, lr} \n"
+                 "msr psp, r0 \n"
+                 "isb \n"
+                 "bx lr \n");
+}
+
+void rtos_port_scheduler_init(void) {
+  NVIC_EnableIRQ(PendSV_IRQn);
+  NVIC_SetPriority(PendSV_IRQn, 15U);
+}
+
+void rtos_port_request_context_switch(void) {}

@@ -23,10 +23,15 @@ typedef struct {
   rtos_task_state_t state;
 } rtos_tcb_t;
 
+// Task storage
 void rtos_task_system_init(void);
-void rtos_scheduler_init(void);
-
 rtos_tcb_t *rtos_task_at(uint32_t index);
-rtos_tcb_t *rtos_scheduler_select_next(void);
+
+void rtos_scheduler_init(void);
+rtos_tcb_t *rtos_scheduler_start(void);
+
+// IMPORTANT FOR PORT, PORT NEED TO CALL THIS
+rtos_stack_word_t *
+rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer);
 
 #endif // !RTOS_INTERNAL_H
