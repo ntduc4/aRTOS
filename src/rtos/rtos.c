@@ -18,3 +18,5 @@ void rtos_start(void) {
   for (;;) {
   }
 }
+
+void rtos_yield(void) { rtos_port_request_context_switch(); }

@@ -1,5 +1,6 @@
 #include "rtos_port.h"
 #include "cmsis_gcc.h"
+#include "rtos.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
