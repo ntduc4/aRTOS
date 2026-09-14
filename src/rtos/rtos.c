@@ -7,10 +7,10 @@ void rtos_init(void) {
   rtos_scheduler_init();
 }
 
-void rtos_start(void) {
+rtos_status_t rtos_start(void) {
   rtos_tcb_t *first_task = rtos_scheduler_start();
   if (first_task == NULL)
-    return;
+    return RTOS_ERROR_NO_TASKS;
 
   rtos_port_start_first_task(first_task->stack_pointer);
 

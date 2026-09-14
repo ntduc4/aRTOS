@@ -11,7 +11,8 @@ typedef enum {
   RTOS_OK = 0,
   RTOS_ERROR_INVALID_ARGUMENT,
   RTOS_ERROR_TASK_LIMIT,
-  RTOS_ERROR_STACK_TOO_SMALL
+  RTOS_ERROR_STACK_TOO_SMALL,
+  RTOS_ERROR_NO_TASKS
 } rtos_status_t;
 
 typedef uintptr_t rtos_stack_word_t;
@@ -21,8 +22,7 @@ typedef uintptr_t rtos_stack_word_t;
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
                                uint32_t stack_word_count);
-// TO BE IMPLEMENT
-void rtos_start(void);
+rtos_status_t rtos_start(void);
 void rtos_yield(void);
 // void rtos_wait(void);
 

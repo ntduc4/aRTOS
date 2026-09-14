@@ -1,9 +1,22 @@
+#include <stdint.h>
+
+#include "cmsis_gcc.h"
+#include "rtos.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos/rtos_internal.h"
 #include "rtos_config.h"
 
 static rtos_tcb_t task_table[RTOS_MAX_TASKS];
 static uint32_t task_count;
+
+static _Alignas(8) rtos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
+
+static void idle_task_entry(void *argument) {
+  for (;;)
+    __WFI();
+}
+
+static rtos_tcb_t idle_task;
 
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
@@ -34,6 +47,16 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
 }
 
 void rtos_task_system_init(void) {
+  // Setup idle task
+  idle_task = (rtos_tcb_t){
+      .stack_pointer = rtos_port_initialize_stack(
+          idle_task_stack + RTOS_MIN_STACK_WORDS, &idle_task_entry, NULL),
+      .stack_buffer = idle_task_stack,
+      .stack_word_count = RTOS_MIN_STACK_WORDS,
+      .entry = &idle_task_entry,
+      .argument = NULL,
+      .state = RTOS_TASK_READY};
+
   for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++) {
     task_table[i] = (rtos_tcb_t){0};
     task_table[i].state = RTOS_TASK_UNUSED;
@@ -46,3 +69,5 @@ rtos_tcb_t *rtos_task_at(uint32_t index) {
     return NULL;
   return &task_table[index];
 }
+
+rtos_tcb_t *rtos_idle_task() { return &idle_task; };

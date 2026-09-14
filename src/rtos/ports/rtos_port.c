@@ -71,7 +71,7 @@ void PendSV_Handler(void) __attribute__((naked));
 // - Store software-saved register to r0, decrease before since stack top point
 //   to current top of stack (stack grow downard)
 //
-// - Call scheduler ???
+// - Call scheduler
 //
 // - Load software-saved register from r0, increase after since stack top point
 //   to current top of stack (stack grow downard)
@@ -86,9 +86,10 @@ void PendSV_Handler(void) {
                  "bx lr \n");
 }
 
-void rtos_port_scheduler_init(void) {
-  NVIC_EnableIRQ(PendSV_IRQn);
-  NVIC_SetPriority(PendSV_IRQn, 15U);
-}
+void rtos_port_scheduler_init(void) { NVIC_SetPriority(PendSV_IRQn, 15U); }
 
-void rtos_port_request_context_switch(void) {}
+void rtos_port_request_context_switch(void) {
+  SCB->ICSR = (1 << 28);
+  __DSB();
+  __ISB();
+}
