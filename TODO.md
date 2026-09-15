@@ -57,24 +57,23 @@
 - [ ] Run the complete demo for at least 10 minutes without failure `[C]`
 
 ## Week 10: Optional Priority Scheduling
-- [ ] Implement priority scheduling with round-robin behavior among equal priorities `[S]`
+- [ ] Add compile-time scheduling configuration (max priorities, preemption, time slicing), FreeRTOS-style `[S]`
+- [ ] Extend task creation and the TCB with a priority field `[S]`
+- [ ] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
+- [ ] Add optional O(1) selection via ready mask + count-leading-zeros instead of a flat scan `[S]`
 - [ ] Integrate priorities with blocking and synchronization wake-ups `[S]`
 - [ ] Demonstrate high-, medium-, and low-priority task behavior `[S]`
-- [ ] Document priority inversion as a known limitation `[S]`
 
-## Week 11: Polish and Cleanup
-- [ ] Clean up public APIs, naming, structure, and low-level documentation `[C]`
-- [ ] Verify a clean build, flash, debug, and serial workflow `[C]`
-- [ ] Fix remaining stability and integration issues `[C]`
-- [ ] Run the complete demo for at least 30 minutes without failure `[C]`
-- [ ] Record known limitations and future work `[C]`
+## Week 11: Optional Mutex
+- [ ] Implement mutex create, take, and give with ownership enforcement `[S]`
+- [ ] Implement priority inheritance for tasks blocked on a mutex `[S]`
+- [ ] Ensure mutex operations are preemption-safe and task-only `[S]`
+- [ ] Demonstrate a mutex guarding a shared resource between tasks `[S]`
 
-## Week 12: Final Demo and Documentation
-- [ ] Finalize the README with workflows, architecture, scheduling, and synchronization notes `[C]`
-- [ ] Document the demo, sample output, limitations, and future work `[C]`
-- [ ] Record a short demo video or GIF `[C]`
-- [ ] Complete final build and reliability verification `[C]`
-- [ ] Tag the final version after repository cleanup `[C]`
+## Week 12: Polish, Final Demo, and Documentation
+- [ ] Polish APIs, naming, and low-level documentation; verify the full workflow `[C]`
+- [ ] Finalize the README with architecture, scheduling, and synchronization notes `[C]`
+- [ ] Run the final reliability test and tag the release `[C]`
 
 ---
 
@@ -87,6 +86,6 @@ If time runs short, land features in this order:
 3. **Week 6:** Blocking delays
 4. **Week 7:** Binary semaphore and button integration
 5. **Week 8:** Message queue and integrated demo
-6. **Weeks 11-12:** Stabilization, documentation, and final demo
+6. **Weeks 9 and 12:** Stabilization, documentation, and final demo
 
-Everything tagged `[S]` can be deferred without compromising the core demonstration.
+Everything tagged `[S]` (Weeks 9-11) can be deferred without compromising the core demonstration.
