@@ -1,6 +1,8 @@
 #include "rtos_port.h"
 #include "cmsis_gcc.h"
+#include "core_cm4.h"
 #include "rtos.h"
+#include "rtos_config.h"
 #include "stm32f446xx.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
@@ -124,4 +126,22 @@ void rtos_port_request_context_switch(void) {
   SCB->ICSR = (1 << 28);
   __DSB();
   __ISB();
+}
+
+void rtos_port_tick_init(void) {
+  // Copied from SysTick_Config() from "core_cm4"
+  // Check 4.5 programming manual also
+  SysTick->LOAD =
+      (uint32_t)(SystemCoreClock / RTOS_TICK_HZ) - 1U; /* set reload register */
+  NVIC_SetPriority(SysTick_IRQn, 14U); /* set Priority for Systick Interrupt */
+  SysTick->VAL = 0UL;                  /* Load the SysTick Counter Value */
+  SysTick->CTRL =
+      SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk |
+      SysTick_CTRL_ENABLE_Msk; /* Enable SysTick IRQ and SysTick Timer */
+}
+
+void SysTick_Handler(void) __attribute__((naked));
+void SysTick_Handler(void) {
+  __asm volatile("bl rtos_scheduler_tick \n"
+                 "bx lr \n");
 }

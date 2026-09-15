@@ -18,4 +18,6 @@ typedef uint32_t rtos_port_irq_state_t;
 rtos_port_irq_state_t rtos_port_enter_critical(void);
 void rtos_port_exit_critical(rtos_port_irq_state_t previous_state);
 
+void rtos_port_tick_init(void);
+
 #endif

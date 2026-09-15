@@ -4,9 +4,11 @@
 
 static rtos_tcb_t *current_task;
 static uint32_t index = 0;
+static uint32_t tick = 0;
 
 void rtos_scheduler_init() {
   rtos_port_scheduler_init();
+  rtos_port_tick_init();
   current_task = 0;
   index = 0;
 }
@@ -83,4 +85,9 @@ void rtos_scheduler_unblock_task(uint32_t index) {
   rtos_tcb_t *task = rtos_task_at(index);
   if (task->state == RTOS_TASK_BLOCKED)
     task->state = RTOS_TASK_READY;
+}
+
+void rtos_scheduler_tick(void) {
+  tick++;
+  // TODO: Preemption here
 }

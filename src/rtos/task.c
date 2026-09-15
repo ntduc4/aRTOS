@@ -70,4 +70,4 @@ rtos_tcb_t *rtos_task_at(uint32_t index) {
   return &task_table[index];
 }
 
-rtos_tcb_t *rtos_idle_task() { return &idle_task; };
+rtos_tcb_t *rtos_idle_task(void) { return &idle_task; };

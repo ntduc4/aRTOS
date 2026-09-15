@@ -26,12 +26,12 @@ typedef struct {
 // Task storage
 void rtos_task_system_init(void);
 rtos_tcb_t *rtos_task_at(uint32_t index);
-rtos_tcb_t *rtos_idle_task();
+rtos_tcb_t *rtos_idle_task(void);
 
 // Scheduler
 void rtos_scheduler_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
-// void rtos_scheduler_update_current_task_state(rtos_task_state_t new_state);
+void rtos_scheduler_tick(void);
 void rtos_scheduler_block_current_task(void);
 void rtos_scheduler_unblock_task(uint32_t index);
 
