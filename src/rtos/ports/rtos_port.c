@@ -5,6 +5,9 @@
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
+#if (__FPU_USED != 1U)
+#error "Cortex-M4F port requires hardware floating-point support"
+#endif
 
 #define RTOS_PORT_INITIAL_XPSR (1UL << 24)
 #define RTOS_PORT_INITIAL_EXC_RETURN (0xFFFFFFFDU)
@@ -68,6 +71,8 @@ void SVC_Handler(void) {
 void PendSV_Handler(void) __attribute__((naked));
 
 // - Move psp -> r0
+// - Check bit 4 of LR == 0 or not (0 = floating point, 1 = non FP)
+// - Store (or don't) the FP register to the stack
 // - Store software-saved register to r0, decrease before since stack top point
 //   to current top of stack (stack grow downard)
 //
@@ -75,18 +80,32 @@ void PendSV_Handler(void) __attribute__((naked));
 //
 // - Load software-saved register from r0, increase after since stack top point
 //   to current top of stack (stack grow downard)
+// - Check bit 4 of LR == 0 or not (0 = floating point, 1 = non FP)
+// - Load (or don't) the FP register to the stack
 // - Move r0 -> psp
 void PendSV_Handler(void) {
   __asm volatile("mrs r0, psp \n"
+                 "tst lr, #0x10 \n"
+                 "it eq \n"
+                 "vstmdbeq r0!, {s16-s31} \n"
                  "stmdb r0!, {r4-r11, lr} \n"
                  "bl rtos_scheduler_switch_context \n"
                  "ldmia r0!, {r4-r11, lr} \n"
+                 "tst lr, #0x10 \n"
+                 "it eq \n"
+                 "vldmiaeq r0!, {s16-s31} \n"
                  "msr psp, r0 \n"
                  "isb \n"
                  "bx lr \n");
 }
 
-void rtos_port_scheduler_init(void) { NVIC_SetPriority(PendSV_IRQn, 15U); }
+void rtos_port_scheduler_init(void) {
+  NVIC_SetPriority(PendSV_IRQn, 15U);
+  SCB->CPACR |= 0xFUL << 20;
+  __DSB();
+  __ISB();
+  FPU->FPCCR |= FPU_FPCCR_ASPEN_Msk | FPU_FPCCR_LSPEN_Msk;
+}
 
 void rtos_port_request_context_switch(void) {
   SCB->ICSR = (1 << 28);

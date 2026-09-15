@@ -2,7 +2,7 @@
 #include "rtos_config.h"
 #include "rtos_internal.h"
 
-rtos_tcb_t *volatile current_task;
+static rtos_tcb_t *current_task;
 static uint32_t index = 0;
 
 void rtos_scheduler_init() {

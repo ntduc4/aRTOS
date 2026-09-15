@@ -20,9 +20,9 @@
 - [x] Verify a task starts and runs from its own stack `[C]`
 
 ## Week 4: Cooperative Scheduling
-- [ ] Implement kernel startup, yielding, and round-robin scheduling `[C]`
-- [ ] Implement the Cortex-M PendSV context-switch port `[C]`
-- [ ] Verify two cooperative tasks alternate correctly `[C]`
+- [x] Implement kernel startup, yielding, and round-robin scheduling `[C]`
+- [x] Implement the Cortex-M PendSV context-switch port `[C]`
+- [x] Verify two cooperative tasks alternate correctly `[C]`
 
 ## Week 5: Preemption and Kernel Foundations
 - [ ] Implement SysTick-based timekeeping and preemptive scheduling `[C]`
