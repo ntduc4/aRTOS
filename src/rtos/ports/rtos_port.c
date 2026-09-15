@@ -1,6 +1,5 @@
 #include "rtos_port.h"
 #include "cmsis_gcc.h"
-#include "core_cm4.h"
 #include "rtos.h"
 #include "rtos_config.h"
 #include "stm32f446xx.h"
