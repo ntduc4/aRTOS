@@ -25,8 +25,8 @@
 - [x] Verify two cooperative tasks alternate correctly `[C]`
 
 ## Week 5: Preemption and Kernel Foundations
-- [ ] Implement SysTick-based timekeeping and preemptive scheduling `[C]`
-- [ ] Implement interrupt-safe critical sections for kernel state `[C]`
+- [x] Implement SysTick-based timekeeping and preemptive scheduling `[C]`
+- [x] Implement interrupt-safe critical sections for kernel state `[C]`
 - [x] Add an idle task for periods with no runnable user tasks `[C]`
 - [ ] Add a basic HardFault handler with useful fault context `[C]`
 - [ ] Verify preemption, starvation prevention, and idle behavior without UART logging `[C]`

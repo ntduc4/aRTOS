@@ -62,7 +62,7 @@ static void led_task(void *argument) {
     delay(500000);
     GPIOA->BSRR = 1 << (5 + 16);
     delay(500000);
-    rtos_yield();
+    // rtos_yield();
   }
 }
 
@@ -71,8 +71,8 @@ static void usart_task(void *argument) {
   for (;;) {
     for (int i = 0; str[i] != '\0'; i++)
       USART2_write_char(str[i]);
-    delay(2000000);
-    rtos_yield();
+    delay(1500000);
+    // rtos_yield();
   }
 }
 

@@ -1,6 +1,7 @@
 #include "rtos_port.h"
 #include "cmsis_gcc.h"
 #include "rtos.h"
+#include "rtos/rtos_internal.h"
 #include "rtos_config.h"
 #include "stm32f446xx.h"
 
@@ -35,6 +36,18 @@ void rtos_port_exit_critical(rtos_port_irq_state_t previous_state) {
   __set_PRIMASK(previous_state);
 }
 
+inline static void rtos_port_tick_init(void) {
+  // Copied from SysTick_Config() from "core_cm4"
+  // Check 4.5 programming manual also
+  SysTick->LOAD =
+      (uint32_t)(SystemCoreClock / RTOS_TICK_HZ) - 1U; /* set reload register */
+  NVIC_SetPriority(SysTick_IRQn, 14U); /* set Priority for Systick Interrupt */
+  SysTick->VAL = 0UL;                  /* Load the SysTick Counter Value */
+  SysTick->CTRL =
+      SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk |
+      SysTick_CTRL_ENABLE_Msk; /* Enable SysTick IRQ and SysTick Timer */
+}
+
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
                                               rtos_task_fn_t entry,
                                               void *argument) {
@@ -59,9 +72,11 @@ rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
 void rtos_port_start_first_task(rtos_stack_word_t *saved_stack_pointer) {
   // PSP initially have software-saved registers
   __set_PSP((uint32_t)(uintptr_t)saved_stack_pointer);
+  rtos_port_tick_init();
+  __enable_irq(); // Make SVC able to execute
 
-  // Make SVC able to execute
-  __enable_irq();
+  // NOTE: Theoretically a SysTick can land here
+  //       Practically never happen (unless RTOS_TICK_HZ is much higher)
 
   // Enger handler mode so EXC_RETURN can be used
   __asm volatile("svc 0" ::: "memory");
@@ -127,20 +142,4 @@ void rtos_port_request_context_switch(void) {
   __ISB();
 }
 
-void rtos_port_tick_init(void) {
-  // Copied from SysTick_Config() from "core_cm4"
-  // Check 4.5 programming manual also
-  SysTick->LOAD =
-      (uint32_t)(SystemCoreClock / RTOS_TICK_HZ) - 1U; /* set reload register */
-  NVIC_SetPriority(SysTick_IRQn, 14U); /* set Priority for Systick Interrupt */
-  SysTick->VAL = 0UL;                  /* Load the SysTick Counter Value */
-  SysTick->CTRL =
-      SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk |
-      SysTick_CTRL_ENABLE_Msk; /* Enable SysTick IRQ and SysTick Timer */
-}
-
-void SysTick_Handler(void) __attribute__((naked));
-void SysTick_Handler(void) {
-  __asm volatile("bl rtos_scheduler_tick \n"
-                 "bx lr \n");
-}
+void SysTick_Handler(void) { rtos_scheduler_tick(); }

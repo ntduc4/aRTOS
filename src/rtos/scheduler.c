@@ -8,9 +8,9 @@ static uint32_t tick = 0;
 
 void rtos_scheduler_init() {
   rtos_port_scheduler_init();
-  rtos_port_tick_init();
   current_task = 0;
   index = 0;
+  tick = 0;
 }
 
 // Make sure to only call when context switch
@@ -90,4 +90,5 @@ void rtos_scheduler_unblock_task(uint32_t index) {
 void rtos_scheduler_tick(void) {
   tick++;
   // TODO: Preemption here
+  rtos_port_request_context_switch();
 }
