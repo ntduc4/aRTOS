@@ -12,6 +12,7 @@ void rtos_scheduler_init() {
 }
 
 // Make sure to only call when context switch
+// Make sure to already in critical state
 //
 // TODO: Add different scheduling algo support later
 static rtos_tcb_t *
@@ -59,7 +60,10 @@ rtos_tcb_t *rtos_scheduler_start(void) {
 
 rtos_stack_word_t *
 rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   rtos_tcb_t *next = rtos_scheduler_select_next(current_stack_pointer);
+  rtos_port_exit_critical(prev_state);
+
   // Should never happen
   if (next == NULL)
     return NULL;

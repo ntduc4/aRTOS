@@ -21,6 +21,19 @@ static void rtos_port_task_return_trap(void) {
     __WFI();
 }
 
+rtos_port_irq_state_t rtos_port_enter_critical(void) {
+  rtos_port_irq_state_t previous_state = __get_PRIMASK();
+
+  __disable_irq();
+  __DMB();
+  return previous_state;
+}
+
+void rtos_port_exit_critical(rtos_port_irq_state_t previous_state) {
+  __DMB();
+  __set_PRIMASK(previous_state);
+}
+
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
                                               rtos_task_fn_t entry,
                                               void *argument) {

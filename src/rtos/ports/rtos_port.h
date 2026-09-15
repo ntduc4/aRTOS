@@ -13,4 +13,9 @@ void rtos_port_scheduler_init(void);
 void rtos_port_start_first_task(rtos_stack_word_t *saved_stack_pointer);
 void rtos_port_request_context_switch(void);
 
+typedef uint32_t rtos_port_irq_state_t;
+
+rtos_port_irq_state_t rtos_port_enter_critical(void);
+void rtos_port_exit_critical(rtos_port_irq_state_t previous_state);
+
 #endif
