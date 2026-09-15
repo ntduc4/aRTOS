@@ -143,3 +143,43 @@ void rtos_port_request_context_switch(void) {
 }
 
 void SysTick_Handler(void) { rtos_scheduler_tick(); }
+
+volatile rtos_fault_info_t rtos_fault_info;
+
+void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return)
+    __attribute__((noreturn));
+
+void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return) {
+  rtos_fault_info.r0 = frame[0];
+  rtos_fault_info.r1 = frame[1];
+  rtos_fault_info.r2 = frame[2];
+  rtos_fault_info.r3 = frame[3];
+  rtos_fault_info.r12 = frame[4];
+  rtos_fault_info.lr = frame[5];
+  rtos_fault_info.pc = frame[6];
+  rtos_fault_info.xpsr = frame[7];
+  rtos_fault_info.exc_return = exc_return;
+
+  rtos_fault_info.cfsr = SCB->CFSR;
+  rtos_fault_info.hfsr = SCB->HFSR;
+  rtos_fault_info.mmfar = SCB->MMFAR;
+  rtos_fault_info.bfar = SCB->BFAR;
+
+  rtos_fault_info.task = rtos_scheduler_current_task();
+
+  __DSB();
+  __disable_irq();
+  for (;;) {
+    __WFI();
+  }
+}
+
+void HardFault_Handler(void) __attribute__((naked));
+void HardFault_Handler(void) {
+  __asm volatile("tst lr, #0x4 \n" // EXC_RETURN bit 2: 0 = MSP, 1 = PSP
+                 "ite eq \n"
+                 "mrseq r0, msp \n"
+                 "mrsne r0, psp \n"
+                 "mov r1, lr \n" // pass EXC_RETURN
+                 "b rtos_port_hard_fault_c \n");
+}

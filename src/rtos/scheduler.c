@@ -89,6 +89,8 @@ void rtos_scheduler_unblock_task(uint32_t index) {
 
 void rtos_scheduler_tick(void) {
   tick++;
-  // TODO: Preemption here
+  // TODO: Add conditional preemption here once blocking is implemented
   rtos_port_request_context_switch();
 }
+
+const rtos_tcb_t *rtos_scheduler_current_task(void) { return current_task; }

@@ -28,8 +28,8 @@
 - [x] Implement SysTick-based timekeeping and preemptive scheduling `[C]`
 - [x] Implement interrupt-safe critical sections for kernel state `[C]`
 - [x] Add an idle task for periods with no runnable user tasks `[C]`
-- [ ] Add a basic HardFault handler with useful fault context `[C]`
-- [ ] Verify preemption, starvation prevention, and idle behavior without UART logging `[C]`
+- [x] Add a basic HardFault handler with useful fault context `[C]`
+- [x] Verify preemption, starvation prevention, and idle behavior without UART logging `[C]`
 
 ## Week 6: Blocking Delays
 - [ ] Implement tick- and millisecond-based blocking delays `[C]`

@@ -34,6 +34,8 @@ rtos_tcb_t *rtos_scheduler_start(void);
 void rtos_scheduler_tick(void);
 void rtos_scheduler_block_current_task(void);
 void rtos_scheduler_unblock_task(uint32_t index);
+// For debug purposes ONLY
+const rtos_tcb_t *rtos_scheduler_current_task(void);
 
 // IMPORTANT FOR PORT, PORT NEED TO CALL THIS
 rtos_stack_word_t *
