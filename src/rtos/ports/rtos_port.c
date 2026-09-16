@@ -142,7 +142,7 @@ void rtos_port_request_context_switch(void) {
   __ISB();
 }
 
-void SysTick_Handler(void) { rtos_scheduler_tick_handler(); }
+void SysTick_Handler(void) { rtos_tick_handler(); }
 
 volatile rtos_fault_info_t rtos_fault_info;
 

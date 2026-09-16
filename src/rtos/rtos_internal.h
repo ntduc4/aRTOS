@@ -27,18 +27,13 @@ typedef struct {
   void *wait_obj; // For future wake events (semaphore, event flag)
 } rtos_tcb_t;
 
-// Task storage
-void rtos_task_system_init(void);
-rtos_tcb_t *rtos_task_at(uint32_t index);
-rtos_tcb_t *rtos_idle_task(void);
-
-// Scheduler
-void rtos_scheduler_init(void);
+// Task and scheduler
+void rtos_system_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
-void rtos_scheduler_tick_handler(void);
-uint32_t rtos_scheduler_current_tick(void);
-void rtos_scheduler_block_current_task(uint32_t wake_tick, void *wait_obj);
-void rtos_scheduler_unblock_task(uint32_t index);
+void rtos_tick_handler(void);
+uint32_t rtos_current_tick(void);
+void rtos_block_current_task(uint32_t wake_tick, void *wait_obj);
+void rtos_unblock_task(uint32_t index);
 
 // For debug purposes ONLY
 const rtos_tcb_t *rtos_scheduler_current_task(void);

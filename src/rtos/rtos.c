@@ -2,10 +2,7 @@
 #include "rtos/ports/rtos_port.h"
 #include "rtos_internal.h"
 
-void rtos_init(void) {
-  rtos_task_system_init();
-  rtos_scheduler_init();
-}
+void rtos_init(void) { rtos_system_init(); }
 
 rtos_status_t rtos_start(void) {
   rtos_tcb_t *first_task = rtos_scheduler_start();
@@ -23,15 +20,14 @@ void rtos_yield(void) { rtos_port_request_context_switch(); }
 
 void rtos_wait(uint32_t tick_count) {
   if (tick_count > 0)
-    rtos_scheduler_block_current_task(
-        rtos_scheduler_current_tick() + tick_count, NULL);
+    rtos_block_current_task(rtos_current_tick() + tick_count, NULL);
   rtos_port_request_context_switch();
 }
 
-uint32_t rtos_get_tick(void) { return rtos_scheduler_current_tick(); }
+uint32_t rtos_get_tick(void) { return rtos_current_tick(); }
 
 void rtos_wait_until(uint32_t wake_tick) {
-  if (wake_tick > rtos_scheduler_current_tick())
-    rtos_scheduler_block_current_task(wake_tick, NULL);
+  if (wake_tick > rtos_current_tick())
+    rtos_block_current_task(wake_tick, NULL);
   rtos_port_request_context_switch();
 }
