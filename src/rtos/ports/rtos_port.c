@@ -1,8 +1,9 @@
-#include "rtos_port.h"
+#include <stdint.h>
+
 #include "cmsis_gcc.h"
 #include "rtos.h"
-#include "rtos/rtos_internal.h"
 #include "rtos_config.h"
+#include "rtos_port.h"
 #include "stm32f446xx.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),

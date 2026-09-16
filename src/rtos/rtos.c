@@ -1,6 +1,7 @@
 #include "rtos.h"
+
 #include "rtos/ports/rtos_port.h"
-#include "rtos_internal.h"
+#include "tasks.h"
 
 void rtos_init(void) { rtos_system_init(); }
 

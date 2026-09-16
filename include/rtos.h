@@ -6,6 +6,7 @@
 
 #define RTOS_MS_TO_TICKS(ms)                                                   \
   ((uint32_t)(((uint64_t)(ms) * (uint64_t)RTOS_TICK_HZ) / 1000U))
+#define RTOS_DELAY_INFINITY 0xFFFFFFFFU
 
 typedef void (*rtos_task_fn_t)(void *argument);
 

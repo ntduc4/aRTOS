@@ -3,8 +3,8 @@
 #include "cmsis_gcc.h"
 #include "rtos.h"
 #include "rtos/ports/rtos_port.h"
-#include "rtos/rtos_internal.h"
 #include "rtos_config.h"
+#include "tasks.h"
 
 static rtos_tcb_t task_pool[RTOS_MAX_TASKS];
 static uint32_t task_count;
@@ -140,7 +140,7 @@ void rtos_block_current_task(uint32_t wake_tick, void *wait_obj) {
     return;
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   current_task->wake_tick =
-      (wake_tick == RTOS_INFINITY) ? RTOS_INFINITY : wake_tick;
+      (wake_tick == RTOS_DELAY_INFINITY) ? RTOS_DELAY_INFINITY : wake_tick;
   current_task->state = RTOS_TASK_BLOCKED;
   current_task->wait_obj = wait_obj;
   rtos_port_exit_critical(prev_state);
@@ -162,7 +162,7 @@ void rtos_unblock_task(uint32_t index) {
 
 void rtos_tick_handler(void) {
   _ticks++;
-  if (_ticks == RTOS_INFINITY)
+  if (_ticks == RTOS_DELAY_INFINITY)
     _ticks = 0;
 
   uint8_t need_switch = 0;
