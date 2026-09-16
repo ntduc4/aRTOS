@@ -20,3 +20,9 @@ rtos_status_t rtos_start(void) {
 }
 
 void rtos_yield(void) { rtos_port_request_context_switch(); }
+
+void rtos_wait(uint32_t tick_count) {
+  rtos_scheduler_block_current_task(rtos_scheduler_current_tick() + tick_count,
+                                    NULL);
+  rtos_port_request_context_switch();
+}

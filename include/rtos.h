@@ -24,6 +24,6 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                uint32_t stack_word_count);
 rtos_status_t rtos_start(void);
 void rtos_yield(void);
-// void rtos_wait(void);
+void rtos_wait(uint32_t tick_count);
 
 #endif // !RTOS_H

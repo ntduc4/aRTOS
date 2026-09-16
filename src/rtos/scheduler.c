@@ -1,16 +1,17 @@
 #include "rtos/ports/rtos_port.h"
 #include "rtos_config.h"
 #include "rtos_internal.h"
+#include <stdint.h>
 
 static rtos_tcb_t *current_task;
-static uint32_t index = 0;
-static uint32_t tick = 0;
+static uint32_t _index = 0;
+static uint32_t _ticks = 0;
 
 void rtos_scheduler_init() {
   rtos_port_scheduler_init();
   current_task = 0;
-  index = 0;
-  tick = 0;
+  _index = 0;
+  _ticks = 0;
 }
 
 // Make sure to only call when context switch
@@ -29,7 +30,7 @@ rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
       if (task->state == RTOS_TASK_READY) {
         current_task = task;
         current_task->state = RTOS_TASK_RUNNING;
-        index = i;
+        _index = i;
         return current_task;
       }
     }
@@ -38,17 +39,17 @@ rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
   }
 
   current_task->stack_pointer = current_stack_pointer;
-  uint32_t i = index;
+  uint32_t i = _index;
   do {
     i = (i + 1) % RTOS_MAX_TASKS;
     rtos_tcb_t *task = rtos_task_at(i);
     if (task->state == RTOS_TASK_READY) {
       current_task = task;
       current_task->state = RTOS_TASK_RUNNING;
-      index = i;
+      _index = i;
       return current_task;
     }
-  } while (i != index);
+  } while (i != _index);
 
   // Return idle task as default if no task is schedulable
   current_task = rtos_idle_task();
@@ -73,9 +74,14 @@ rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
   return next->stack_pointer;
 }
 
-void rtos_scheduler_block_current_task(void) {
-  if (current_task != NULL)
-    current_task->state = RTOS_TASK_BLOCKED;
+void rtos_scheduler_block_current_task(uint32_t ticks, void *wait_obj) {
+  if (current_task == NULL)
+    return;
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  current_task->wake_tick = (ticks == RTOS_INFINITY) ? RTOS_INFINITY : ticks;
+  current_task->state = RTOS_TASK_BLOCKED;
+  current_task->wait_obj = wait_obj;
+  rtos_port_exit_critical(prev_state);
 }
 
 void rtos_scheduler_unblock_task(uint32_t index) {
@@ -83,14 +89,22 @@ void rtos_scheduler_unblock_task(uint32_t index) {
     return;
 
   rtos_tcb_t *task = rtos_task_at(index);
-  if (task->state == RTOS_TASK_BLOCKED)
+  if (task->state == RTOS_TASK_BLOCKED) {
+    rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
     task->state = RTOS_TASK_READY;
+    task->wait_obj = NULL;
+    task->wake_tick = 0;
+    rtos_port_exit_critical(prev_state);
+  }
 }
 
-void rtos_scheduler_tick(void) {
-  tick++;
+void rtos_scheduler_tick_handler(void) {
+  _ticks++;
+
   // TODO: Add conditional preemption here once blocking is implemented
   rtos_port_request_context_switch();
 }
+
+uint32_t rtos_scheduler_current_tick(void) { return _ticks; }
 
 const rtos_tcb_t *rtos_scheduler_current_task(void) { return current_task; }

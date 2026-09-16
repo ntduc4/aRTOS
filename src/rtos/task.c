@@ -37,7 +37,8 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                             .stack_word_count = stack_word_count,
                             .entry = entry,
                             .argument = argument,
-                            .state = RTOS_TASK_READY};
+                            .state = RTOS_TASK_READY,
+                            .wake_tick = 0};
       task_table[i] = new_tcb;
       task_count++;
       return RTOS_OK;
@@ -55,7 +56,8 @@ void rtos_task_system_init(void) {
       .stack_word_count = RTOS_MIN_STACK_WORDS,
       .entry = &idle_task_entry,
       .argument = NULL,
-      .state = RTOS_TASK_READY};
+      .state = RTOS_TASK_READY,
+      .wake_tick = 0};
 
   for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++) {
     task_table[i] = (rtos_tcb_t){0};

@@ -3,6 +3,8 @@
 #include "rtos.h"
 #include "stddef.h"
 
+#define RTOS_INFINITY 0xFFFFFFFFU
+
 typedef enum {
   RTOS_TASK_UNUSED = 0,
   RTOS_TASK_READY,
@@ -21,6 +23,8 @@ typedef struct {
   void *argument;
 
   rtos_task_state_t state;
+  uint32_t wake_tick;
+  void *wait_obj; // For future wake events (semaphore, event flag)
 } rtos_tcb_t;
 
 // Task storage
@@ -31,9 +35,11 @@ rtos_tcb_t *rtos_idle_task(void);
 // Scheduler
 void rtos_scheduler_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
-void rtos_scheduler_tick(void);
-void rtos_scheduler_block_current_task(void);
+void rtos_scheduler_tick_handler(void);
+uint32_t rtos_scheduler_current_tick(void);
+void rtos_scheduler_block_current_task(uint32_t ticks, void *wait_obj);
 void rtos_scheduler_unblock_task(uint32_t index);
+
 // For debug purposes ONLY
 const rtos_tcb_t *rtos_scheduler_current_task(void);
 
