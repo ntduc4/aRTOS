@@ -54,24 +54,63 @@ void USART2_write_char(char c) {
   USART2->DR = (uint8_t)c;
 }
 
+static void USART2_write_uint(uint32_t value) {
+  char buf[10];
+  uint32_t i = 0;
+  if (value == 0) {
+    USART2_write_char('0');
+    return;
+  }
+  while (value > 0) {
+    buf[i++] = (char)('0' + (value % 10));
+    value /= 10;
+  }
+  while (i > 0)
+    USART2_write_char(buf[--i]);
+}
+
 static void led_task(void *argument) {
   // Blink
+  uint32_t next_run = 0;
   for (;;) {
+    next_run += 2000;
     // Atomic write instead of using ODR (ref manual 7.3.5)
     GPIOA->BSRR = 1 << 5;
-    delay(500000);
+    rtos_wait(500);
     GPIOA->BSRR = 1 << (5 + 16);
-    delay(500000);
-    // rtos_yield();
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << 5;
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << (5 + 16);
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << 5;
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << (5 + 16);
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << 5;
+    rtos_wait(100);
+    GPIOA->BSRR = 1 << (5 + 16);
+    rtos_wait_until(next_run);
   }
 }
 
 static void usart_task(void *argument) {
-  char str[] = "Hello worlds!\n";
+  char str[] = "\tHello worlds!\n";
+  char s[] = "Current tick: ";
+  uint32_t next_run = 0;
   for (;;) {
+    next_run += 1500;
+    uint32_t tick = rtos_get_tick();
+    for (int i = 0; s[i] != '\0'; i++)
+      USART2_write_char(s[i]);
+
+    USART2_write_uint(tick);
+
     for (int i = 0; str[i] != '\0'; i++)
       USART2_write_char(str[i]);
-    delay(1500000);
+    // delay(1500000);
+    rtos_wait_until(next_run);
+    // rtos_wait(1500);
     // rtos_yield();
   }
 }

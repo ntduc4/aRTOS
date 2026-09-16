@@ -37,7 +37,7 @@ void rtos_scheduler_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
 void rtos_scheduler_tick_handler(void);
 uint32_t rtos_scheduler_current_tick(void);
-void rtos_scheduler_block_current_task(uint32_t ticks, void *wait_obj);
+void rtos_scheduler_block_current_task(uint32_t wake_tick, void *wait_obj);
 void rtos_scheduler_unblock_task(uint32_t index);
 
 // For debug purposes ONLY

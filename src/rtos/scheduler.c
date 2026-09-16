@@ -1,3 +1,4 @@
+#include "rtos.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos_config.h"
 #include "rtos_internal.h"
@@ -74,11 +75,12 @@ rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
   return next->stack_pointer;
 }
 
-void rtos_scheduler_block_current_task(uint32_t ticks, void *wait_obj) {
+void rtos_scheduler_block_current_task(uint32_t wake_tick, void *wait_obj) {
   if (current_task == NULL)
     return;
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-  current_task->wake_tick = (ticks == RTOS_INFINITY) ? RTOS_INFINITY : ticks;
+  current_task->wake_tick =
+      (wake_tick == RTOS_INFINITY) ? RTOS_INFINITY : wake_tick;
   current_task->state = RTOS_TASK_BLOCKED;
   current_task->wait_obj = wait_obj;
   rtos_port_exit_critical(prev_state);
@@ -100,9 +102,22 @@ void rtos_scheduler_unblock_task(uint32_t index) {
 
 void rtos_scheduler_tick_handler(void) {
   _ticks++;
+  if (_ticks == RTOS_INFINITY)
+    _ticks = 0;
 
-  // TODO: Add conditional preemption here once blocking is implemented
-  rtos_port_request_context_switch();
+  uint8_t need_switch = 0;
+  for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
+    rtos_tcb_t *task = rtos_task_at(i);
+    // Handle infinity and overflow in a later week when event + semaphore is
+    // implemented and optimizing to ready list + wait list
+    if (task->state == RTOS_TASK_BLOCKED && _ticks >= task->wake_tick)
+      rtos_scheduler_unblock_task(i);
+    if (task->state == RTOS_TASK_READY)
+      need_switch = 1;
+  }
+
+  if (need_switch)
+    rtos_port_request_context_switch();
 }
 
 uint32_t rtos_scheduler_current_tick(void) { return _ticks; }
