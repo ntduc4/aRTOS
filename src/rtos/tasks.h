@@ -1,5 +1,6 @@
-#ifndef TASKS_H
-#define TASKS_H
+#ifndef RTOS_TASKS_H
+#define RTOS_TASKS_H
+#include "list.h"
 #include "rtos.h"
 #include "stddef.h"
 
@@ -23,6 +24,9 @@ typedef struct {
   rtos_task_state_t state;
   uint32_t wake_tick;
   void *wait_obj; // For future wake events (semaphore, event flag)
+
+  rtos_list_item_t state_item;
+  rtos_list_item_t event_item;
 } rtos_tcb_t;
 
 // ====================
@@ -42,4 +46,4 @@ const rtos_tcb_t *rtos_scheduler_current_task(void);
 rtos_stack_word_t *
 rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer);
 
-#endif // !TASKS_H
+#endif // !RTOS_TASKS_H

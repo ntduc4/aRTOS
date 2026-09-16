@@ -2,7 +2,7 @@
 #define RTOS_PORT_H
 
 #include "rtos.h"
-#include "tasks.h"
+#include "rtos/tasks.h"
 
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
                                               rtos_task_fn_t entry,

@@ -1,9 +1,7 @@
 #include <stdint.h>
 
 #include "cmsis_gcc.h"
-#include "rtos.h"
 #include "rtos/ports/rtos_port.h"
-#include "rtos_config.h"
 #include "tasks.h"
 
 static rtos_tcb_t task_pool[RTOS_MAX_TASKS];
@@ -64,6 +62,24 @@ rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
   return current_task;
 };
 
+static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
+                                 void *argument, rtos_stack_word_t *stack,
+                                 uint32_t stack_word_count) {
+  tcb->stack_pointer =
+      rtos_port_initialize_stack(stack + stack_word_count, entry, argument);
+  tcb->stack_buffer = stack;
+  tcb->stack_word_count = stack_word_count;
+
+  tcb->entry = entry;
+  tcb->argument = argument;
+
+  tcb->state = RTOS_TASK_READY;
+  tcb->wake_tick = 0;
+  tcb->wait_obj = NULL;
+  rtos_init_list_item(&tcb->state_item, tcb);
+  rtos_init_list_item(&tcb->event_item, tcb);
+}
+
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
                                uint32_t stack_word_count) {
@@ -77,15 +93,7 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
 
   for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
     if (task_pool[i].state == RTOS_TASK_UNUSED) {
-      rtos_tcb_t new_tcb = {.stack_pointer = rtos_port_initialize_stack(
-                                stack_top, entry, argument),
-                            .stack_buffer = stack,
-                            .stack_word_count = stack_word_count,
-                            .entry = entry,
-                            .argument = argument,
-                            .state = RTOS_TASK_READY,
-                            .wake_tick = 0};
-      task_pool[i] = new_tcb;
+      rtos_init_tcb(&task_pool[i], entry, argument, stack, stack_word_count);
       task_count++;
       return RTOS_OK;
     }
@@ -95,15 +103,9 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
 
 void rtos_system_init(void) {
   // Setup idle task
-  idle_task = (rtos_tcb_t){
-      .stack_pointer = rtos_port_initialize_stack(
-          idle_task_stack + RTOS_MIN_STACK_WORDS, &idle_task_entry, NULL),
-      .stack_buffer = idle_task_stack,
-      .stack_word_count = RTOS_MIN_STACK_WORDS,
-      .entry = &idle_task_entry,
-      .argument = NULL,
-      .state = RTOS_TASK_READY,
-      .wake_tick = 0};
+
+  rtos_init_tcb(&idle_task, idle_task_entry, NULL, idle_task_stack,
+                RTOS_MIN_STACK_WORDS);
 
   for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++) {
     task_pool[i] = (rtos_tcb_t){0};
