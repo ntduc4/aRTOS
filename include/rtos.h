@@ -1,7 +1,11 @@
 #ifndef RTOS_H
 #define RTOS_H
+#include "rtos_config.h"
 #include <stddef.h>
 #include <stdint.h>
+
+#define RTOS_MS_TO_TICKS(ms)                                                   \
+  ((uint32_t)(((uint64_t)(ms) * (uint64_t)RTOS_TICK_HZ) / 1000U))
 
 typedef void (*rtos_task_fn_t)(void *argument);
 

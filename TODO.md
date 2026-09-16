@@ -32,10 +32,10 @@
 - [x] Verify preemption, starvation prevention, and idle behavior without UART logging `[C]`
 
 ## Week 6: Blocking Delays
-- [ ] Implement tick- and millisecond-based blocking delays `[C]`
-- [ ] Integrate delayed-task wake-up with the scheduler and system tick `[C]`
-- [ ] Verify delayed tasks do not busy-wait and the idle task runs when appropriate `[C]`
-- [ ] Demonstrate concurrent LED and logger tasks using blocking delays `[C]`
+- [x] Implement tick- and millisecond-based blocking delays `[C]`
+- [x] Integrate delayed-task wake-up with the scheduler and system tick `[C]`
+- [x] Verify delayed tasks do not busy-wait and the idle task runs when appropriate `[C]`
+- [x] Demonstrate concurrent LED and logger tasks using blocking delays `[C]`
 
 ## Week 7: Binary Semaphore and Button ISR
 - [ ] Implement binary semaphore initialization, wait, and signal operations `[C]`
