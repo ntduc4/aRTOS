@@ -4,13 +4,6 @@
 #include "rtos.h"
 #include "stddef.h"
 
-typedef enum {
-  RTOS_TASK_UNUSED = 0,
-  RTOS_TASK_READY,
-  RTOS_TASK_RUNNING,
-  RTOS_TASK_BLOCKED
-} rtos_task_state_t;
-
 typedef struct {
   // Current saved context
   rtos_stack_word_t *stack_pointer;
@@ -20,10 +13,6 @@ typedef struct {
 
   rtos_task_fn_t entry;
   void *argument;
-
-  rtos_task_state_t state;
-  uint32_t wake_tick;
-  void *wait_obj; // For future wake events (semaphore, event flag)
 
   rtos_list_item_t state_item;
   rtos_list_item_t event_item;
@@ -36,8 +25,10 @@ void rtos_system_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
 void rtos_tick_handler(void);
 uint32_t rtos_current_tick(void);
-void rtos_block_current_task(uint32_t wake_tick, void *wait_obj);
-void rtos_unblock_task(uint32_t index);
+// Doesn't need critical section
+void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj);
+// Assume already in critical section
+void rtos_unblock_task(rtos_list_item_t *task_item);
 
 // For debug purposes ONLY
 const rtos_tcb_t *rtos_scheduler_current_task(void);
