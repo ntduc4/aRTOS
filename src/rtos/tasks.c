@@ -11,12 +11,14 @@ static rtos_tcb_t _task_pool[RTOS_MAX_TASKS];
 static uint32_t _tsk_cnt;
 static rtos_tcb_t *_cur_task;
 static uint32_t _ticks = 0;
-static uint8_t _overflowed = 0;
 
 static rtos_list_t _ready_l;
 static rtos_list_t _delayed_l;
 static rtos_list_t _delayed_overflow_l;
 static rtos_list_t _suspend_l;
+
+static rtos_list_t *_cur_delayed;
+static rtos_list_t *_next_delayed;
 
 static _Alignas(8) rtos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
 
@@ -90,14 +92,17 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
   if (_tsk_cnt == RTOS_MAX_TASKS)
     return RTOS_ERROR_TASK_LIMIT;
 
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
     if (_task_pool[i].stack_pointer == NULL) {
       rtos_init_tcb(&_task_pool[i], entry, argument, stack, stack_word_count);
       _tsk_cnt++;
       rtos_list_insert_end(&_ready_l, &_task_pool[i].state_item);
+      rtos_port_exit_critical(prev_state);
       return RTOS_OK;
     }
   }
+  rtos_port_exit_critical(prev_state);
   return RTOS_ERROR_TASK_LIMIT;
 }
 
@@ -113,12 +118,14 @@ void rtos_system_init(void) {
   _cur_task = 0;
   _ticks = 0;
   _tsk_cnt = 0;
-  _overflowed = 0;
 
   rtos_init_list(&_ready_l);
   rtos_init_list(&_delayed_l);
   rtos_init_list(&_delayed_overflow_l);
   rtos_init_list(&_suspend_l);
+
+  _cur_delayed = &_delayed_l;
+  _next_delayed = &_delayed_overflow_l;
 
   rtos_port_scheduler_init();
 }
@@ -140,23 +147,22 @@ rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
   return next->stack_pointer;
 }
 
-void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj) {
+void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
+                             uint8_t infinite) {
   // No cur_task (just started) or cur task already blocked
   if (_cur_task == NULL || _cur_task->state_item.container != NULL)
     return;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
 
-  _cur_task->state_item.value = wake_tick & (~RTOS_TICK_MSK);
-
+  _cur_task->state_item.value = wake_tick;
   // Delay (always append to a list)
-  if (wake_tick == RTOS_DELAY_INFINITY)
+  if (infinite)
     rtos_list_insert_end(&_suspend_l, &_cur_task->state_item);
-  else if ((_overflowed && !(wake_tick & RTOS_TICK_MSK)) ||
-           (!_overflowed && (wake_tick & RTOS_TICK_MSK)))
-    rtos_list_insert_sorted(&_delayed_overflow_l, &_cur_task->state_item);
+  else if (wake_tick < _ticks) // wake_tick == _ticks should not happen
+    rtos_list_insert_sorted(_next_delayed, &_cur_task->state_item);
   else
-    rtos_list_insert_sorted(&_delayed_l, &_cur_task->state_item);
+    rtos_list_insert_sorted(_cur_delayed, &_cur_task->state_item);
 
   // Event (may or may not append to a list)
   if (wait_obj != NULL)
@@ -181,24 +187,21 @@ void rtos_unblock_task(rtos_list_item_t *task_item) {
 }
 
 void rtos_tick_handler(void) {
-  _ticks++;
-  if (_ticks & RTOS_TICK_MSK) {
-    _ticks = 0;
-    _overflowed = !_overflowed;
-  }
-
-  rtos_list_t *main_list = _overflowed ? &_delayed_overflow_l : &_delayed_l;
-  rtos_list_t *backup_list = _overflowed ? &_delayed_l : &_delayed_overflow_l;
-
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-  if (_ticks == 0)
-    while (backup_list->count) {
-      rtos_tcb_t *task = backup_list->sentinel.next->owner;
-      rtos_unblock_task(&task->state_item);
+  _ticks++;
+  if (_ticks == 0) {
+    rtos_list_t *temp = _cur_delayed;
+    // safe fall back, should never happen
+    while (_cur_delayed->count) {
+      rtos_list_remove(_cur_delayed->sentinel.next);
     }
 
-  while (main_list->count && main_list->sentinel.next->value <= _ticks) {
-    rtos_tcb_t *task = main_list->sentinel.next->owner;
+    _cur_delayed = _next_delayed;
+    _next_delayed = temp;
+  }
+
+  while (_cur_delayed->count && _cur_delayed->sentinel.next->value <= _ticks) {
+    rtos_tcb_t *task = _cur_delayed->sentinel.next->owner;
     rtos_unblock_task(&task->state_item);
   }
   rtos_port_exit_critical(prev_state);

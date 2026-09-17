@@ -18,11 +18,6 @@ void setup_gpio() {
   GPIOA->MODER |= (0b01 << (5 * 2));
 }
 
-void delay(volatile uint32_t count) {
-  while (count--)
-    __NOP();
-}
-
 void setup_USART2() {
   // RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN; // For future DMA USART
   // ref manual 6.3.10

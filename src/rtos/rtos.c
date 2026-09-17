@@ -24,13 +24,15 @@ void rtos_wait(uint32_t tick_count) {
     rtos_block_current_task(tick_count == RTOS_DELAY_INFINITY
                                 ? RTOS_DELAY_INFINITY
                                 : rtos_current_tick() + tick_count,
-                            NULL);
+                            NULL, tick_count == RTOS_DELAY_INFINITY);
   rtos_port_request_context_switch();
 }
 
 uint32_t rtos_get_tick(void) { return rtos_current_tick(); }
 
 void rtos_wait_until(uint32_t wake_tick) {
-  rtos_block_current_task(wake_tick, NULL);
+  uint32_t delta = (wake_tick - rtos_current_tick());
+  if (delta != 0 && delta < 0x80000000)
+    rtos_block_current_task(wake_tick, NULL, 0);
   rtos_port_request_context_switch();
 }
