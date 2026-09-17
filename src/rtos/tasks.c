@@ -153,8 +153,6 @@ void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
   if (_cur_task == NULL || _cur_task->state_item.container != NULL)
     return;
 
-  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-
   _cur_task->state_item.value = wake_tick;
   // Delay (always append to a list)
   if (infinite)
@@ -167,8 +165,6 @@ void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
   // Event (may or may not append to a list)
   if (wait_obj != NULL)
     rtos_list_insert_end(wait_obj, &_cur_task->event_item);
-
-  rtos_port_exit_critical(prev_state);
 }
 
 void rtos_unblock_task(rtos_list_item_t *task_item) {

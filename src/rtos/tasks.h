@@ -25,7 +25,7 @@ void rtos_system_init(void);
 rtos_tcb_t *rtos_scheduler_start(void);
 void rtos_tick_handler(void);
 uint32_t rtos_current_tick(void);
-// Doesn't need critical section
+// Assume already in critical section
 void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
                              uint8_t infinite);
 // Assume already in critical section
