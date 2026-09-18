@@ -3,11 +3,18 @@
 #include <stdint.h>
 
 #define TASK_STACK_WORDS 128U
+#define BUTTON_PIN 13U
+#define BUTTON_MASK (1UL << BUTTON_PIN)
 
 static rtos_stack_word_t led_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 static rtos_stack_word_t usart_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
+static rtos_stack_word_t button_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
+
+static rtos_semaphore_storage_t sem_storage;
+static rtos_binary_semaphore_t *semaphore;
 
 void setup_gpio() {
   // GPIOA clock enable (ref manual 6.3.10)
@@ -41,6 +48,39 @@ void setup_USART2() {
   // Transmitter
   USART2->CR1 |= USART_CR1_TE;
   USART2->CR1 |= USART_CR1_UE;
+}
+
+void setup_button() {
+  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
+  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+
+  // PC13 input with pull-up; the Nucleo user button is active-low.
+  GPIOC->MODER &= ~(0b11UL << (BUTTON_PIN * 2U));
+  GPIOC->PUPDR &= ~(0b11UL << (BUTTON_PIN * 2U));
+  GPIOC->PUPDR |= 0b01UL << (BUTTON_PIN * 2U);
+
+  // Route PC13 to EXTI13 (EXTICR4, port C = 0b0010).
+  SYSCFG->EXTICR[3] &= ~(0b1111UL << 4U);
+  SYSCFG->EXTICR[3] |= 0b0010UL << 4U;
+
+  EXTI->IMR &= ~BUTTON_MASK;
+  EXTI->RTSR &= ~BUTTON_MASK;
+  EXTI->FTSR |= BUTTON_MASK;
+  EXTI->PR = BUTTON_MASK;
+
+  NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+  NVIC_SetPriority(EXTI15_10_IRQn, 13U);
+  EXTI->IMR |= BUTTON_MASK;
+  NVIC_EnableIRQ(EXTI15_10_IRQn);
+}
+
+void EXTI15_10_IRQHandler(void) {
+  if ((EXTI->PR & BUTTON_MASK) == 0U)
+    return;
+
+  EXTI->PR = BUTTON_MASK;
+  if (rtos_binary_semaphore_signal_isr(semaphore))
+    rtos_yield_from_isr();
 }
 
 void USART2_write_char(char c) {
@@ -110,11 +150,27 @@ static void usart_task(void *argument) {
   }
 }
 
+static void button_task(void *argument) {
+  char str[] = "\nButton pressed!\n";
+  rtos_binary_semaphore_t *sem = argument;
+
+  for (;;) {
+    rtos_binary_semaphore_wait(sem, RTOS_DELAY_INFINITY);
+    for (int i = 0; str[i] != '\0'; i++)
+      USART2_write_char(str[i]);
+  }
+}
+
 int main() {
   setup_gpio();
   setup_USART2();
 
   rtos_init();
+
+  semaphore = rtos_binary_semaphore_init(&sem_storage, false);
+  if (semaphore == NULL)
+    for (;;) {
+    }
 
   rtos_status_t status1 =
       rtos_task_create(led_task, NULL, led_stack, TASK_STACK_WORDS);
@@ -128,6 +184,13 @@ int main() {
     for (;;) {
     }
 
+  rtos_status_t status3 =
+      rtos_task_create(button_task, semaphore, button_stack, TASK_STACK_WORDS);
+  if (status3 != RTOS_OK)
+    for (;;) {
+    }
+
+  setup_button();
   rtos_start();
 
   // Just in case

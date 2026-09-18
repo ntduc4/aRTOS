@@ -40,8 +40,8 @@
 ## Week 7: Binary Semaphore and Button ISR
 - [x] Implement binary semaphore initialization, wait, and signal operations `[C]`
 - [x] Support task blocking and ISR-safe semaphore signaling `[C]`
-- [ ] Integrate the board button interrupt with a semaphore-driven task `[C]`
-- [ ] Verify button events over UART `[C]`
+- [x] Integrate the board button interrupt with a semaphore-driven task `[C]`
+- [x] Verify button events over UART `[C]`
 
 ## Week 8: Message Queue and Showcase Demo
 - [ ] Implement a bounded message queue with blocking receive and full-queue handling `[C]`
