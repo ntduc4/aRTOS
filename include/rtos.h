@@ -35,6 +35,7 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                uint32_t stack_word_count);
 rtos_status_t rtos_start(void);
 void rtos_yield(void);
+void rtos_yield_from_isr(void);
 // Passing tick_count = 0 have the same behaviour as rtos_yield
 void rtos_wait(uint32_t tick_count);
 // Does not have RTOS_DELAY_INFINITY semantic
@@ -81,7 +82,8 @@ bool rtos_binary_semaphore_wait(rtos_binary_semaphore_t *semaphore,
                                 uint32_t tick_timeout);
 // Never block, return successfully take or not
 bool rtos_binary_semaphore_take_isr(rtos_binary_semaphore_t *semaphore);
-// Never block, return whether a task was awaken not
+// Never block, return whether a task was awaken not, doesn't request scheduling
+// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
 bool rtos_binary_semaphore_signal_isr(rtos_binary_semaphore_t *semaphore);
 
 // Will immidiately yield if there's one waiting for better latency

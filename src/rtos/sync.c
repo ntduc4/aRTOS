@@ -82,5 +82,36 @@ void rtos_binary_semaphore_signal(rtos_binary_semaphore_t *sem) {
   rtos_port_request_context_switch();
 }
 
-bool rtos_binary_semaphore_take_isr(rtos_binary_semaphore_t *sem);
-bool rtos_binary_semaphore_signal_isr(rtos_binary_semaphore_t *sem);
+bool rtos_binary_semaphore_take_isr(rtos_binary_semaphore_t *sem) {
+  if (sem == NULL)
+    return false;
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  if (sem->availability) {
+    sem->availability = false;
+    rtos_port_exit_critical(prev_state);
+    return true;
+  }
+  rtos_port_exit_critical(prev_state);
+  return false;
+}
+
+bool rtos_binary_semaphore_signal_isr(rtos_binary_semaphore_t *sem) {
+  if (sem == NULL)
+    return false;
+
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  if (sem->availability) {
+    rtos_port_exit_critical(prev_state);
+    return false;
+  }
+
+  if (sem->wait_list.count == 0) {
+    sem->availability = true;
+    rtos_port_exit_critical(prev_state);
+    return false;
+  }
+
+  rtos_unblock_task(sem->wait_list.sentinel.next, WAIT_SIGNALED);
+  rtos_port_exit_critical(prev_state);
+  return true;
+}

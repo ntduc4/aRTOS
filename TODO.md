@@ -38,8 +38,8 @@
 - [x] Demonstrate concurrent LED and logger tasks using blocking delays `[C]`
 
 ## Week 7: Binary Semaphore and Button ISR
-- [ ] Implement binary semaphore initialization, wait, and signal operations `[C]`
-- [ ] Support task blocking and ISR-safe semaphore signaling `[C]`
+- [x] Implement binary semaphore initialization, wait, and signal operations `[C]`
+- [x] Support task blocking and ISR-safe semaphore signaling `[C]`
 - [ ] Integrate the board button interrupt with a semaphore-driven task `[C]`
 - [ ] Verify button events over UART `[C]`
 

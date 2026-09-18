@@ -143,6 +143,12 @@ void rtos_port_request_context_switch(void) {
   __ISB();
 }
 
+void rtos_port_request_context_switch_from_isr(void) {
+  SCB->ICSR = (1 << 28);
+  __DSB();
+  __ISB();
+}
+
 void SysTick_Handler(void) { rtos_tick_handler(); }
 
 volatile rtos_fault_info_t rtos_fault_info;

@@ -18,6 +18,7 @@ rtos_status_t rtos_start(void) {
 }
 
 void rtos_yield(void) { rtos_port_request_context_switch(); }
+void rtos_yield_from_isr(void) { rtos_port_request_context_switch_from_isr(); }
 
 void rtos_wait(uint32_t tick_count) {
   if (tick_count > 0) {
