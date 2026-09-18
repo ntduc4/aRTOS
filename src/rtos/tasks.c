@@ -77,6 +77,7 @@ static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
 
   rtos_init_list_item(&tcb->state_item, tcb);
   rtos_init_list_item(&tcb->event_item, tcb);
+  tcb->wait_reason = WAIT_NO_REASON;
 }
 
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
@@ -148,7 +149,7 @@ rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
 }
 
 void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
-                             uint8_t infinite) {
+                             bool infinite) {
   // No cur_task (just started) or cur task already blocked
   if (_cur_task == NULL || _cur_task->state_item.container != NULL)
     return;
@@ -167,7 +168,7 @@ void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
     rtos_list_insert_end(wait_obj, &_cur_task->event_item);
 }
 
-void rtos_unblock_task(rtos_list_item_t *task_item) {
+void rtos_unblock_task(rtos_list_item_t *task_item, rtos_wait_reason_t reason) {
   if (task_item == NULL || task_item->owner == NULL ||
       task_item->container == NULL)
     return;
@@ -179,6 +180,7 @@ void rtos_unblock_task(rtos_list_item_t *task_item) {
     rtos_list_remove(&task->state_item);
     rtos_list_remove(&task->event_item);
     rtos_list_insert_end(&_ready_l, &task->state_item);
+    task->wait_reason = reason;
   }
 }
 
@@ -198,7 +200,7 @@ void rtos_tick_handler(void) {
 
   while (_cur_delayed->count && _cur_delayed->sentinel.next->value <= _ticks) {
     rtos_tcb_t *task = _cur_delayed->sentinel.next->owner;
-    rtos_unblock_task(&task->state_item);
+    rtos_unblock_task(&task->state_item, WAIT_TIMED_OUT);
   }
   rtos_port_exit_critical(prev_state);
 
@@ -209,3 +211,18 @@ void rtos_tick_handler(void) {
 uint32_t rtos_current_tick(void) { return _ticks; }
 
 const rtos_tcb_t *rtos_scheduler_current_task(void) { return _cur_task; }
+
+rtos_wait_reason_t rtos_current_wait_reason(void) {
+  if (_cur_task == NULL)
+    return WAIT_NO_REASON;
+  return _cur_task->wait_reason;
+}
+
+void rtos_clear_current_wait_reason(void) {
+  if (_cur_task == NULL)
+    return;
+
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  _cur_task->wait_reason = WAIT_NO_REASON;
+  rtos_port_exit_critical(prev_state);
+};
