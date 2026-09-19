@@ -5,16 +5,39 @@
 #define TASK_STACK_WORDS 128U
 #define BUTTON_PIN 13U
 #define BUTTON_MASK (1UL << BUTTON_PIN)
+#define QUEUE_CAPACITY 2U
+#define CONSUMER_COUNT 3U
+#define PRODUCER_INTERVAL_MS 1250U
+#define CONSUMER_TIMEOUT_MS 600U
 
 static rtos_stack_word_t led_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t usart_stack[TASK_STACK_WORDS]
+static rtos_stack_word_t producer_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
+static rtos_stack_word_t consumer_stacks[CONSUMER_COUNT][TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 static rtos_stack_word_t button_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 
 static rtos_semaphore_storage_t sem_storage;
 static rtos_binary_semaphore_t *semaphore;
+static rtos_semaphore_storage_t uart_lock_storage;
+static rtos_binary_semaphore_t *uart_lock;
+typedef struct {
+  uint32_t sequence;
+  uint32_t created_tick;
+} demo_message_t;
+
+typedef struct {
+  uint32_t id;
+  uint32_t delay_ms;
+} consumer_argument_t;
+
+static rtos_queue_control_storage_t queue_control;
+static demo_message_t queue_items[QUEUE_CAPACITY];
+static rtos_queue_t *queue;
+static consumer_argument_t consumer_arguments[CONSUMER_COUNT] = {
+    {1U, 2500U}, {2U, 3500U}, {3U, 4500U}};
 
 void setup_gpio() {
   // GPIOA clock enable (ref manual 6.3.10)
@@ -104,6 +127,28 @@ static void USART2_write_uint(uint32_t value) {
     USART2_write_char(buf[--i]);
 }
 
+static void USART2_write_string(const char *text) {
+  while (*text)
+    USART2_write_char(*text++);
+}
+
+static void demo_log(const char *event, uint32_t id, uint32_t sequence,
+                     uint32_t tick, const char *metric, uint32_t value) {
+  rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+  USART2_write_string(event);
+  if (id != 0U)
+    USART2_write_uint(id);
+  USART2_write_string("\t#");
+  USART2_write_uint(sequence);
+  USART2_write_string("\t@");
+  USART2_write_uint(tick);
+  USART2_write_char('\t');
+  USART2_write_string(metric);
+  USART2_write_uint(value);
+  USART2_write_char('\n');
+  rtos_binary_semaphore_signal(uart_lock);
+}
+
 static void led_task(void *argument) {
   // Blink
   uint32_t next_run_ms = 0;
@@ -129,24 +174,40 @@ static void led_task(void *argument) {
   }
 }
 
-static void usart_task(void *argument) {
-  char str[] = "\tHello worlds!\n";
-  char s[] = "Current tick: ";
-  uint32_t next_run_ms = 0;
+static void producer_task(void *argument) {
+  uint32_t sequence = 0;
   for (;;) {
-    next_run_ms += 1500;
-    uint32_t tick = rtos_get_tick();
-    for (int i = 0; s[i] != '\0'; i++)
-      USART2_write_char(s[i]);
+    demo_message_t message = {++sequence, rtos_get_tick()};
+    uint32_t start = rtos_get_tick();
+    rtos_queue_enqueue(queue, (uint8_t *)&message, RTOS_DELAY_INFINITY);
+    uint32_t finished = rtos_get_tick();
+    demo_log("P", 0U, sequence, finished, "wait=", finished - start);
+    rtos_wait(RTOS_MS_TO_TICKS(PRODUCER_INTERVAL_MS));
+  }
+}
 
-    USART2_write_uint(tick);
-
-    for (int i = 0; str[i] != '\0'; i++)
-      USART2_write_char(str[i]);
-    // delay(1500000);
-    rtos_wait_until(RTOS_MS_TO_TICKS(next_run_ms));
-    // rtos_wait(1500);
-    // rtos_yield();
+static void usart_task(void *argument) {
+  consumer_argument_t *consumer = argument;
+  for (;;) {
+    demo_message_t message;
+    if (!rtos_queue_dequeue(queue, (uint8_t *)&message,
+                            RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
+      rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+      USART2_write_char('C');
+      USART2_write_uint(consumer->id);
+      USART2_write_string("\t#NONE\t@");
+      USART2_write_uint(rtos_get_tick());
+      USART2_write_string("\ttimeout=");
+      USART2_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
+      USART2_write_char('\n');
+      rtos_binary_semaphore_signal(uart_lock);
+      continue;
+    }
+    // Capture receive time before waiting for UART ownership.
+    uint32_t received_tick = rtos_get_tick();
+    demo_log("C", consumer->id, message.sequence, received_tick,
+             "age=", received_tick - message.created_tick);
+    rtos_wait(RTOS_MS_TO_TICKS(consumer->delay_ms));
   }
 }
 
@@ -156,8 +217,10 @@ static void button_task(void *argument) {
 
   for (;;) {
     rtos_binary_semaphore_wait(sem, RTOS_DELAY_INFINITY);
+    rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
     for (int i = 0; str[i] != '\0'; i++)
       USART2_write_char(str[i]);
+    rtos_binary_semaphore_signal(uart_lock);
   }
 }
 
@@ -168,9 +231,18 @@ int main() {
   rtos_init();
 
   semaphore = rtos_binary_semaphore_init(&sem_storage, false);
-  if (semaphore == NULL)
+  uart_lock = rtos_binary_semaphore_init(&uart_lock_storage, true);
+  if (semaphore == NULL || uart_lock == NULL)
     for (;;) {
     }
+
+  queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
+                          sizeof(demo_message_t), QUEUE_CAPACITY);
+  if (queue == NULL)
+    for (;;) {
+    }
+  USART2_write_string("P produces every 2 s; C1-C3 timeout after 1.2 s.\n");
+  USART2_write_string("TASK\tMSG\tTICK\tDETAIL\n");
 
   rtos_status_t status1 =
       rtos_task_create(led_task, NULL, led_stack, TASK_STACK_WORDS);
@@ -178,9 +250,8 @@ int main() {
     for (;;) {
     }
 
-  rtos_status_t status2 =
-      rtos_task_create(usart_task, NULL, usart_stack, TASK_STACK_WORDS);
-  if (status2 != RTOS_OK)
+  if (rtos_task_create(producer_task, NULL, producer_stack, TASK_STACK_WORDS) !=
+      RTOS_OK)
     for (;;) {
     }
 
@@ -189,6 +260,13 @@ int main() {
   if (status3 != RTOS_OK)
     for (;;) {
     }
+
+  for (uint32_t i = 0; i < CONSUMER_COUNT; i++) {
+    if (rtos_task_create(usart_task, &consumer_arguments[i], consumer_stacks[i],
+                         TASK_STACK_WORDS) != RTOS_OK)
+      for (;;) {
+      }
+  }
 
   setup_button();
   rtos_start();

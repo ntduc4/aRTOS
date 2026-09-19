@@ -1,7 +1,7 @@
 #ifndef RTOS_CONFIG_H
 #define RTOS_CONFIG_H
 
-#define RTOS_MAX_TASKS 8U
+#define RTOS_MAX_TASKS 16U
 #define RTOS_TICK_HZ 1000U
 
 // Recommend to increase this to 128U if floating point is used
