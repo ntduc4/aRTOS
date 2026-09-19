@@ -77,15 +77,4 @@
 
 ---
 
-## Critical Path Summary
-
-If time runs short, land features in this order:
-
-1. **Weeks 1-4:** Board bring-up, task model, task startup, and cooperative scheduling
-2. **Week 5:** Preemption, critical sections, idle task, and fault handling
-3. **Week 6:** Blocking delays
-4. **Week 7:** Binary semaphore and button integration
-5. **Week 8:** Message queue and integrated demo
-6. **Weeks 9 and 12:** Stabilization, documentation, and final demo
-
 Everything tagged `[S]` (Weeks 9-11) can be deferred without compromising the core demonstration.

@@ -188,7 +188,7 @@ static void heartbeat_task(void *argument) {
   uint32_t next_tick = rtos_get_tick();
   for (;;) {
     demo_message_t message = {DEMO_HEARTBEAT, ++sequence, rtos_get_tick()};
-    rtos_queue_enqueue(queue, (uint8_t *)&message, RTOS_DELAY_INFINITY);
+    rtos_queue_enqueue(queue, (uint8_t *)&message, 0);
     next_tick += RTOS_MS_TO_TICKS(HEARTBEAT_INTERVAL_MS);
     rtos_wait_until(next_tick);
   }
