@@ -44,8 +44,8 @@
 - [x] Verify button events over UART `[C]`
 
 ## Week 8: Message Queue and Showcase Demo
-- [ ] Implement a bounded message queue with blocking receive and full-queue handling `[C]`
-- [ ] Make queue operations safe under preemption and interrupt concurrency `[C]`
+- [x] Implement a bounded message queue with blocking receive and full-queue handling `[C]`
+- [x] Make queue operations safe under preemption and interrupt concurrency `[C]`
 - [ ] Build the heartbeat, button, and logger producer-consumer demo `[C]`
 - [ ] Verify the complete LED, heartbeat, button, logger, and load-task demo `[C]`
 
