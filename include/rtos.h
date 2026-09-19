@@ -1,23 +1,45 @@
 #ifndef ARTOS_H
 #define ARTOS_H
+
+/**
+ * @file rtos.h
+ * @brief Public API for the completely static aRTOS kernel.
+ */
+
 #include "rtos_config.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * @brief Convert milliseconds to kernel ticks.
+ * @param ms Duration in milliseconds.
+ * @return Duration converted using RTOS_TICK_HZ, rounded down.
+ */
 #define RTOS_MS_TO_TICKS(ms)                                                   \
   ((uint32_t)(((uint64_t)(ms) * (uint64_t)RTOS_TICK_HZ) / 1000U))
+
+/** @brief Timeout value that represents an infinite wait. */
 #define RTOS_DELAY_INFINITY 0xFFFFFFFFU
 
+/**
+ * @brief Task entry-point function type.
+ * @param argument Application argument supplied when the task is created.
+ * @note Task entry functions must not return.
+ */
 typedef void (*rtos_task_fn_t)(void *argument);
 
+/**
+ * @brief Initialize the kernel and architecture port.
+ * @note Call once before creating tasks or starting the scheduler.
+ */
 void rtos_init(void);
 
 // =========================
 //           Tasks
 // =========================
 
-// Status
+/** @brief Status codes returned by kernel lifecycle operations. */
 typedef enum {
   RTOS_OK = 0,
   RTOS_ERROR_INVALID_ARGUMENT,
@@ -26,34 +48,79 @@ typedef enum {
   RTOS_ERROR_NO_TASKS
 } rtos_status_t;
 
+/** @brief Native stack word type used by the active architecture port. */
 typedef uintptr_t rtos_stack_word_t;
 
-// Static task allocation
-// `stack` should be 8 bytes aligned
+/**
+ * @brief Create a task using caller-owned stack storage.
+ * @param entry Task entry point. Must not be NULL and must not return.
+ * @param argument Argument passed to @p entry. May be NULL.
+ * @param stack Persistent stack buffer owned by the caller.
+ * @param stack_word_count Number of rtos_stack_word_t elements in @p stack.
+ * @return RTOS_OK on success.
+ * @return RTOS_ERROR_INVALID_ARGUMENT if @p entry or @p stack is NULL, or if
+ *         the stack top is not 8-byte aligned.
+ * @return RTOS_ERROR_STACK_TOO_SMALL if the stack contains fewer than
+ *         RTOS_MIN_STACK_WORDS elements.
+ * @return RTOS_ERROR_TASK_LIMIT if the static task pool is full.
+ * @warning The stack storage must remain valid and must not be moved while the
+ *          task exists.
+ */
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
                                uint32_t stack_word_count);
+
+/**
+ * @brief Start scheduling the created tasks.
+ * @return RTOS_ERROR_NO_TASKS if no user task has been created.
+ * @note A successful call does not return.
+ */
 rtos_status_t rtos_start(void);
+
+/** @brief Voluntarily yield the processor from task context. */
 void rtos_yield(void);
+
+/**
+ * @brief Request a context switch from interrupt context.
+ * @note Call after the interrupt source and peripheral state have been handled.
+ */
 void rtos_yield_from_isr(void);
-// Passing tick_count = 0 have the same behaviour as rtos_yield
+
+/**
+ * @brief Block the current task for a relative number of ticks.
+ * @param tick_count Number of ticks to wait. Zero behaves like rtos_yield().
+ *        RTOS_DELAY_INFINITY blocks indefinitely.
+ * @warning Task-context-only. Do not call while already in a critical section.
+ */
 void rtos_wait(uint32_t tick_count);
-// Does not have RTOS_DELAY_INFINITY semantic
-// Valid future horizon is 1 - 0x7fffffff, longer future = past
+
+/**
+ * @brief Block the current task until an absolute kernel tick.
+ * @param wake_tick Absolute tick at which the task should become ready.
+ * @note RTOS_DELAY_INFINITY has no special meaning for this function.
+ * @note The valid future horizon is 1 through 0x7fffffff ticks. A value outside
+ *       that horizon is treated as current or past time and does not block.
+ * @warning Task-context-only. Do not call while already in a critical section.
+ */
 void rtos_wait_until(uint32_t wake_tick);
+
+/**
+ * @brief Read the current kernel tick count.
+ * @return Current 32-bit tick count, which wraps naturally.
+ */
 uint32_t rtos_get_tick(void);
 
 // =================================
 //           Dummy storage
 // =================================
 
-// Kernel private, do not use this
+/** @brief Kernel-private static list-item storage. Do not access its fields. */
 typedef struct {
   uint32_t value;
   void *_p, *_n, *_o, *_c;
 } rtos_static_list_item_t;
 
-// Kernel private, do not use this
+/** @brief Kernel-private static list storage. Do not access its fields. */
 typedef struct {
   uint32_t _c;
   rtos_static_list_item_t _s;
@@ -63,83 +130,186 @@ typedef struct {
 //           Semaphore
 // =============================
 
-// Semaphore
+/** @brief Opaque binary or counting semaphore type. */
 typedef struct rtos_semaphore rtos_semaphore_t;
 
-// Must not be copied or moved
+/**
+ * @brief Caller-owned storage for a semaphore control block.
+ * @warning Initialized storage must not be copied or moved.
+ */
 typedef struct {
-  // Kernel private, do not touch this
+  /** @cond INTERNAL */
   uint32_t _a, _b;
-  // Kernel private, do not touch this
   rtos_static_list_t _w;
+  /** @endcond */
 } rtos_semaphore_storage_t;
 
+/**
+ * @brief Initialize a binary semaphore in caller-owned storage.
+ * @param storage Persistent storage for the semaphore control block.
+ * @param initially_available True to create one available token, false to
+ *        create the semaphore empty.
+ * @return A semaphore handle on success, or NULL if @p storage is NULL.
+ * @warning The storage must remain valid and must not be moved after
+ *          initialization.
+ */
 rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
                                              bool initially_available);
+
+/**
+ * @brief Initialize a counting semaphore in caller-owned storage.
+ * @param storage Persistent storage for the semaphore control block.
+ * @param max_count Maximum number of stored tokens. Must be greater than zero.
+ * @param initial_count Number of initially available tokens. Must not exceed
+ *        @p max_count.
+ * @return A semaphore handle on success.
+ * @return NULL if @p storage is NULL, @p max_count is zero, or
+ *         @p initial_count exceeds @p max_count.
+ * @warning The storage must remain valid and must not be moved after
+ *          initialization.
+ */
 rtos_semaphore_t *
 rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
                              uint32_t max_count, uint32_t initial_count);
 
-// tick_timeout == 0 won't block
-// tick_timeout == RTOS_DELAY_INFINITY will wait indefinitely until signaled
-// Return true if successfully obtain the semaphore, false if timeout
-// Task-context-only and may block, must not be in critical section beforehand
+/**
+ * @brief Take one semaphore token, optionally blocking until one is available.
+ * @param semaphore Semaphore to take.
+ * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
+ *        RTOS_DELAY_INFINITY waits indefinitely.
+ * @return True if a token was obtained, otherwise false for an invalid handle
+ *         or timeout.
+ * @warning Task-context-only. Do not call while already in a critical section.
+ */
 bool rtos_semaphore_take(rtos_semaphore_t *semaphore, uint32_t tick_timeout);
-// Never block, return successfully take or not
+
+/**
+ * @brief Attempt to take one semaphore token from interrupt context.
+ * @param semaphore Semaphore to take.
+ * @return True if a token was obtained, otherwise false.
+ * @note This operation never blocks.
+ */
 bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
-// Never block, return true if signal was handled (not ignored), write to
-// pointer `true` if a task was waken, does not touch the pointer otherwise
-// Pointer is NULL-safe and accumulative
-// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
+
+/**
+ * @brief Signal a semaphore from interrupt context.
+ * @param semaphore Semaphore to signal.
+ * @param[in,out] task_woken Optional accumulating wake flag. The caller should
+ *        initialize it to false before the first ISR-safe kernel operation. The
+ *        function only changes it to true when a task is unblocked.
+ * @return True if the token was stored or handed directly to a waiting task.
+ * @return False if @p semaphore is NULL or already at its maximum count.
+ * @note This operation never blocks and @p task_woken may be NULL.
+ * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ *       completing the required peripheral cleanup.
+ */
 bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore, bool *task_woken);
 
-// Will immidiately yield if there's one waiting for better latency
-// Return true if signal was handled (not ignored)
+/**
+ * @brief Signal a semaphore from task context.
+ * @param semaphore Semaphore to signal.
+ * @return True if the token was stored or handed directly to a waiting task.
+ * @return False if @p semaphore is NULL or already at its maximum count.
+ * @note Requests a context switch when a waiting task is unblocked.
+ */
 bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
 
 // =========================
 //           Queue
 // =========================
 
-// Gurantee FIFO of data, not which task get which data
+/**
+ * @brief Opaque fixed-capacity message queue type.
+ * @note Message ordering is FIFO. Ordering among competing tasks is not
+ *       guaranteed.
+ */
 typedef struct rtos_queue rtos_queue_t;
 
-// Must not be copied or moved
+/**
+ * @brief Caller-owned storage for a queue control block.
+ * @warning Initialized storage must not be copied or moved.
+ */
 typedef struct {
-  // Kernel private, do not touch this
+  /** @cond INTERNAL */
   uint32_t _a, _b, _c, _d;
-  // Kernel private, do not touch this
   size_t _e;
-  // Kernel private, do not touch this
   rtos_static_list_t _r;
-  // Kernel private, do not touch this
   rtos_static_list_t _w;
-  // Kernel private, do not touch this
   uint8_t *_s;
+  /** @endcond */
 } rtos_queue_control_storage_t;
 
-// It is the user responsibility to make sure all item in storage is addressable
-// given the item_size, capacity and storage pointer
+/**
+ * @brief Initialize a bounded FIFO queue using caller-owned storage.
+ * @param control Persistent storage for the queue control block.
+ * @param storage Persistent buffer for @p capacity items of @p item_size bytes.
+ * @param item_size Size of each queue item in bytes. Must be greater than zero.
+ * @param capacity Maximum number of items. Must be greater than zero.
+ * @return A queue handle on success.
+ * @return NULL for invalid pointers, zero sizes, or an overflowing total buffer
+ *         size calculation.
+ * @warning The caller must provide at least `item_size * capacity` addressable
+ *          bytes. Both storage objects must remain valid and must not be moved.
+ */
 rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
                               uint8_t *storage, size_t item_size,
                               uint32_t capacity);
 
+/**
+ * @brief Copy one item into a queue, optionally waiting for free space.
+ * @param queue Queue to receive the item.
+ * @param data Source buffer containing at least the queue's item size in bytes.
+ * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
+ *        RTOS_DELAY_INFINITY waits indefinitely.
+ * @return True if the item was enqueued, otherwise false for invalid arguments
+ *         or timeout.
+ * @warning Task-context-only. Do not call while already in a critical section.
+ */
 bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
                         uint32_t tick_timeout);
+
+/**
+ * @brief Copy one item out of a queue, optionally waiting for data.
+ * @param queue Queue from which to receive the item.
+ * @param dst Destination buffer with space for the queue's item size in bytes.
+ * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
+ *        RTOS_DELAY_INFINITY waits indefinitely.
+ * @return True if an item was dequeued, otherwise false for invalid arguments
+ *         or timeout.
+ * @warning Task-context-only. Do not call while already in a critical section.
+ */
 bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
                         uint32_t tick_timeout);
 
-// Never block, return enqueue successful or not, write to pointer if a task was
-// waken
-// Pointer is NULL-safe and accumulative
-// Recommend to call `rtos_yield_from_isr` after finishing hardware
-// cleanup
+/**
+ * @brief Copy one item into a queue from interrupt context.
+ * @param queue Queue to receive the item.
+ * @param data Source buffer containing at least the queue's item size in bytes.
+ * @param[in,out] task_woken Optional accumulating wake flag. The caller should
+ *        initialize it to false before the first ISR-safe kernel operation. The
+ *        function only changes it to true when a task is unblocked.
+ * @return True if the item was enqueued, otherwise false if the arguments are
+ *         invalid or the queue is full.
+ * @note This operation never blocks and @p task_woken may be NULL.
+ * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ *       completing the required peripheral cleanup.
+ */
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
                                  bool *task_woken);
-// Never block, return dequeue successful or not, write to pointer if a task was
-// waken
-// Pointer is NULL-safe and accumulative
-// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
+
+/**
+ * @brief Copy one item out of a queue from interrupt context.
+ * @param queue Queue from which to receive the item.
+ * @param dst Destination buffer with space for the queue's item size in bytes.
+ * @param[in,out] task_woken Optional accumulating wake flag. The caller should
+ *        initialize it to false before the first ISR-safe kernel operation. The
+ *        function only changes it to true when a task is unblocked.
+ * @return True if an item was dequeued, otherwise false if the arguments are
+ *         invalid or the queue is empty.
+ * @note This operation never blocks and @p task_woken may be NULL.
+ * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ *       completing the required peripheral cleanup.
+ */
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
                                  bool *task_woken);
 
