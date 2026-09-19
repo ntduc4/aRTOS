@@ -49,14 +49,7 @@
 - [x] Build the heartbeat, button, and logger producer-consumer demo `[C]`
 - [x] Verify the complete LED, heartbeat, button, logger, and load-task demo `[C]`
 
-## Week 9: Debugging and Stability
-- [ ] Add task inspection and diagnostic output `[S]`
-- [ ] Add stack watermark and overflow detection `[S]`
-- [ ] Add kernel assertions and improve fault reporting `[S]`
-- [ ] Fix concurrency, context-switching, and timing defects found during testing `[C]`
-- [ ] Run the complete demo for at least 10 minutes without failure `[C]`
-
-## Week 10: Optional Priority Scheduling
+## Week 9: Optional Priority Scheduling
 - [ ] Add compile-time scheduling configuration (max priorities, preemption, time slicing), FreeRTOS-style `[S]`
 - [ ] Extend task creation and the TCB with a priority field `[S]`
 - [ ] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
@@ -64,11 +57,18 @@
 - [ ] Integrate priorities with blocking and synchronization wake-ups `[S]`
 - [ ] Demonstrate high-, medium-, and low-priority task behavior `[S]`
 
-## Week 11: Optional Mutex
+## Week 10: Optional Mutex
 - [ ] Implement mutex create, take, and give with ownership enforcement `[S]`
 - [ ] Implement priority inheritance for tasks blocked on a mutex `[S]`
 - [ ] Ensure mutex operations are preemption-safe and task-only `[S]`
 - [ ] Demonstrate a mutex guarding a shared resource between tasks `[S]`
+
+## Week 11: Debugging and Stability
+- [ ] Add task inspection and diagnostic output `[S]`
+- [ ] Add stack watermark and overflow detection `[S]`
+- [ ] Add kernel assertions and improve fault reporting `[S]`
+- [ ] Fix concurrency, context-switching, and timing defects found during testing `[C]`
+- [ ] Run the complete demo for at least 10 minutes without failure `[C]`
 
 ## Week 12: Polish, Final Demo, and Documentation
 - [ ] Polish APIs, naming, and low-level documentation; verify the full workflow `[C]`
