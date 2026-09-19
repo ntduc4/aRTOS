@@ -5,25 +5,31 @@
 #define TASK_STACK_WORDS 128U
 #define BUTTON_PIN 13U
 #define BUTTON_MASK (1UL << BUTTON_PIN)
-#define QUEUE_CAPACITY 2U
+#define QUEUE_CAPACITY 8U
+#define BUTTON_QUEUE_CAPACITY 4U
+#define HEARTBEAT_INTERVAL_MS 2000U
+#define BUTTON_DEBOUNCE_MS 50U
 #define CONSUMER_COUNT 3U
-#define PRODUCER_INTERVAL_MS 1250U
-#define CONSUMER_TIMEOUT_MS 600U
+#define CONSUMER_TIMEOUT_MS 1200U
 
 static rtos_stack_word_t led_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t producer_stack[TASK_STACK_WORDS]
+static rtos_stack_word_t heartbeat_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t consumer_stacks[CONSUMER_COUNT][TASK_STACK_WORDS]
+static rtos_stack_word_t logger_stacks[CONSUMER_COUNT][TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t button_stack[TASK_STACK_WORDS]
+static rtos_stack_word_t button_logger_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
+static rtos_stack_word_t load_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 
-static rtos_semaphore_storage_t sem_storage;
-static rtos_binary_semaphore_t *semaphore;
-static rtos_semaphore_storage_t uart_lock_storage;
-static rtos_binary_semaphore_t *uart_lock;
+typedef enum {
+  DEMO_HEARTBEAT = 0,
+  DEMO_BUTTON,
+} demo_event_t;
+
 typedef struct {
+  demo_event_t event;
   uint32_t sequence;
   uint32_t created_tick;
 } demo_message_t;
@@ -36,8 +42,17 @@ typedef struct {
 static rtos_queue_control_storage_t queue_control;
 static demo_message_t queue_items[QUEUE_CAPACITY];
 static rtos_queue_t *queue;
+static rtos_queue_control_storage_t button_queue_control;
+static demo_message_t button_queue_items[BUTTON_QUEUE_CAPACITY];
+static rtos_queue_t *button_queue;
+static rtos_semaphore_storage_t uart_lock_storage;
+static rtos_binary_semaphore_t *uart_lock;
 static consumer_argument_t consumer_arguments[CONSUMER_COUNT] = {
     {1U, 2500U}, {2U, 3500U}, {3U, 4500U}};
+static uint32_t button_sequence;
+static uint32_t last_button_tick;
+static bool button_seen;
+static volatile uint32_t load_sink;
 
 void setup_gpio() {
   // GPIOA clock enable (ref manual 6.3.10)
@@ -102,7 +117,21 @@ void EXTI15_10_IRQHandler(void) {
     return;
 
   EXTI->PR = BUTTON_MASK;
-  if (rtos_binary_semaphore_signal_isr(semaphore))
+  uint32_t now = rtos_get_tick();
+  if (button_seen &&
+      now - last_button_tick < RTOS_MS_TO_TICKS(BUTTON_DEBOUNCE_MS))
+    return;
+
+  button_seen = true;
+  last_button_tick = now;
+  demo_message_t message = {DEMO_BUTTON, ++button_sequence, now};
+  bool shared_task_woken;
+  bool button_task_woken;
+  rtos_queue_enqueue_from_isr(button_queue, (uint8_t *)&message,
+                              &button_task_woken);
+  rtos_queue_enqueue_from_isr(queue, (uint8_t *)&message,
+                              &shared_task_woken);
+  if (shared_task_woken || button_task_woken)
     rtos_yield_from_isr();
 }
 
@@ -132,23 +161,6 @@ static void USART2_write_string(const char *text) {
     USART2_write_char(*text++);
 }
 
-static void demo_log(const char *event, uint32_t id, uint32_t sequence,
-                     uint32_t tick, const char *metric, uint32_t value) {
-  rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
-  USART2_write_string(event);
-  if (id != 0U)
-    USART2_write_uint(id);
-  USART2_write_string("\t#");
-  USART2_write_uint(sequence);
-  USART2_write_string("\t@");
-  USART2_write_uint(tick);
-  USART2_write_char('\t');
-  USART2_write_string(metric);
-  USART2_write_uint(value);
-  USART2_write_char('\n');
-  rtos_binary_semaphore_signal(uart_lock);
-}
-
 static void led_task(void *argument) {
   // Blink
   uint32_t next_run_ms = 0;
@@ -174,19 +186,18 @@ static void led_task(void *argument) {
   }
 }
 
-static void producer_task(void *argument) {
+static void heartbeat_task(void *argument) {
   uint32_t sequence = 0;
+  uint32_t next_tick = rtos_get_tick();
   for (;;) {
-    demo_message_t message = {++sequence, rtos_get_tick()};
-    uint32_t start = rtos_get_tick();
+    demo_message_t message = {DEMO_HEARTBEAT, ++sequence, rtos_get_tick()};
     rtos_queue_enqueue(queue, (uint8_t *)&message, RTOS_DELAY_INFINITY);
-    uint32_t finished = rtos_get_tick();
-    demo_log("P", 0U, sequence, finished, "wait=", finished - start);
-    rtos_wait(RTOS_MS_TO_TICKS(PRODUCER_INTERVAL_MS));
+    next_tick += RTOS_MS_TO_TICKS(HEARTBEAT_INTERVAL_MS);
+    rtos_wait_until(next_tick);
   }
 }
 
-static void usart_task(void *argument) {
+static void logger_task(void *argument) {
   consumer_argument_t *consumer = argument;
   for (;;) {
     demo_message_t message;
@@ -195,7 +206,7 @@ static void usart_task(void *argument) {
       rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
       USART2_write_char('C');
       USART2_write_uint(consumer->id);
-      USART2_write_string("\t#NONE\t@");
+      USART2_write_string("\tNONE\t\t#NONE\t@");
       USART2_write_uint(rtos_get_tick());
       USART2_write_string("\ttimeout=");
       USART2_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
@@ -203,24 +214,57 @@ static void usart_task(void *argument) {
       rtos_binary_semaphore_signal(uart_lock);
       continue;
     }
-    // Capture receive time before waiting for UART ownership.
+
     uint32_t received_tick = rtos_get_tick();
-    demo_log("C", consumer->id, message.sequence, received_tick,
-             "age=", received_tick - message.created_tick);
+    rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+    USART2_write_char('C');
+    USART2_write_uint(consumer->id);
+    USART2_write_char('\t');
+    USART2_write_string(message.event == DEMO_HEARTBEAT ? "HEARTBEAT"
+                                                        : "BUTTON");
+    USART2_write_string("\t#");
+    USART2_write_uint(message.sequence);
+    USART2_write_string("\tcreated=@");
+    USART2_write_uint(message.created_tick);
+    USART2_write_string("\treceived=@");
+    USART2_write_uint(received_tick);
+    USART2_write_string("\tage=");
+    USART2_write_uint(received_tick - message.created_tick);
+    USART2_write_char('\n');
+    rtos_binary_semaphore_signal(uart_lock);
     rtos_wait(RTOS_MS_TO_TICKS(consumer->delay_ms));
   }
 }
 
-static void button_task(void *argument) {
-  char str[] = "\nButton pressed!\n";
-  rtos_binary_semaphore_t *sem = argument;
-
+static void button_logger_task(void *argument) {
   for (;;) {
-    rtos_binary_semaphore_wait(sem, RTOS_DELAY_INFINITY);
+    demo_message_t message;
+    if (!rtos_queue_dequeue(button_queue, (uint8_t *)&message,
+                            RTOS_DELAY_INFINITY))
+      continue;
+
+    uint32_t received_tick = rtos_get_tick();
     rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
-    for (int i = 0; str[i] != '\0'; i++)
-      USART2_write_char(str[i]);
+    USART2_write_string("BUTTON-ONLY\tBUTTON\t#");
+    USART2_write_uint(message.sequence);
+    USART2_write_string("\tcreated=@");
+    USART2_write_uint(message.created_tick);
+    USART2_write_string("\treceived=@");
+    USART2_write_uint(received_tick);
+    USART2_write_string("\tage=");
+    USART2_write_uint(received_tick - message.created_tick);
+    USART2_write_char('\n');
     rtos_binary_semaphore_signal(uart_lock);
+  }
+}
+
+static void load_task(void *argument) {
+  for (;;) {
+    uint32_t value = load_sink;
+    for (uint32_t i = 0; i < 50000U; i++)
+      value = value * 1664525U + 1013904223U;
+    load_sink = value;
+    rtos_yield();
   }
 }
 
@@ -230,19 +274,20 @@ int main() {
 
   rtos_init();
 
-  semaphore = rtos_binary_semaphore_init(&sem_storage, false);
   uart_lock = rtos_binary_semaphore_init(&uart_lock_storage, true);
-  if (semaphore == NULL || uart_lock == NULL)
-    for (;;) {
-    }
-
   queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
                           sizeof(demo_message_t), QUEUE_CAPACITY);
-  if (queue == NULL)
+  button_queue = rtos_queue_init(
+      &button_queue_control, (uint8_t *)button_queue_items,
+      sizeof(demo_message_t), BUTTON_QUEUE_CAPACITY);
+  if (uart_lock == NULL || queue == NULL || button_queue == NULL)
     for (;;) {
     }
-  USART2_write_string("P produces every 2 s; C1-C3 timeout after 1.2 s.\n");
-  USART2_write_string("TASK\tMSG\tTICK\tDETAIL\n");
+  USART2_write_string(
+      "aRTOS showcase: 0.5 Hz heartbeat + button -> shared C1-C3 queue\n");
+  USART2_write_string(
+      "Button events are also copied to the immediate BUTTON-ONLY queue.\n");
+  USART2_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
 
   rtos_status_t status1 =
       rtos_task_create(led_task, NULL, led_stack, TASK_STACK_WORDS);
@@ -250,23 +295,26 @@ int main() {
     for (;;) {
     }
 
-  if (rtos_task_create(producer_task, NULL, producer_stack, TASK_STACK_WORDS) !=
-      RTOS_OK)
-    for (;;) {
-    }
-
-  rtos_status_t status3 =
-      rtos_task_create(button_task, semaphore, button_stack, TASK_STACK_WORDS);
-  if (status3 != RTOS_OK)
+  if (rtos_task_create(heartbeat_task, NULL, heartbeat_stack,
+                       TASK_STACK_WORDS) != RTOS_OK)
     for (;;) {
     }
 
   for (uint32_t i = 0; i < CONSUMER_COUNT; i++) {
-    if (rtos_task_create(usart_task, &consumer_arguments[i], consumer_stacks[i],
+    if (rtos_task_create(logger_task, &consumer_arguments[i], logger_stacks[i],
                          TASK_STACK_WORDS) != RTOS_OK)
       for (;;) {
       }
   }
+
+  if (rtos_task_create(button_logger_task, NULL, button_logger_stack,
+                       TASK_STACK_WORDS) != RTOS_OK)
+    for (;;) {
+    }
+
+  if (rtos_task_create(load_task, NULL, load_stack, TASK_STACK_WORDS) != RTOS_OK)
+    for (;;) {
+    }
 
   setup_button();
   rtos_start();

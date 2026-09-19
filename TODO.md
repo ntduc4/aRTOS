@@ -46,8 +46,8 @@
 ## Week 8: Message Queue and Showcase Demo
 - [x] Implement a bounded message queue with blocking receive and full-queue handling `[C]`
 - [x] Make queue operations safe under preemption and interrupt concurrency `[C]`
-- [ ] Build the heartbeat, button, and logger producer-consumer demo `[C]`
-- [ ] Verify the complete LED, heartbeat, button, logger, and load-task demo `[C]`
+- [x] Build the heartbeat, button, and logger producer-consumer demo `[C]`
+- [x] Verify the complete LED, heartbeat, button, logger, and load-task demo `[C]`
 
 ## Week 9: Debugging and Stability
 - [ ] Add task inspection and diagnostic output `[S]`
