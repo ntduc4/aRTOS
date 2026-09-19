@@ -144,7 +144,7 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
                               uint32_t capacity) {
   if (control == NULL || storage == NULL || capacity == 0 || item_size == 0)
     return NULL;
-  if (SIZE_MAX / item_size > capacity)
+  if (SIZE_MAX / item_size < capacity)
     return NULL;
   rtos_queue_t *q = (void *)control;
 
