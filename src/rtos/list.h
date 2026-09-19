@@ -31,5 +31,7 @@ void rtos_list_remove(rtos_list_item_t *item);
 
 void rtos_list_insert_end(rtos_list_t *list, rtos_list_item_t *item);
 void rtos_list_insert_sorted(rtos_list_t *list, rtos_list_item_t *item);
+void rtos_list_insert_reversed_sorted(rtos_list_t *list,
+                                      rtos_list_item_t *item);
 
 #endif // !ARTOS_INTERNAL_LIST_H

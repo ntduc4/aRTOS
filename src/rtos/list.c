@@ -91,3 +91,17 @@ void rtos_list_insert_sorted(rtos_list_t *list, rtos_list_item_t *item) {
 
   rtos_list_prepend(current, item);
 }
+
+void rtos_list_insert_reversed_sorted(rtos_list_t *list,
+                                      rtos_list_item_t *item) {
+  if (list == NULL || item == NULL || list->sentinel.next == NULL ||
+      list->sentinel.prev == NULL || item->container != NULL)
+    return;
+
+  rtos_list_item_t *current = list->sentinel.next;
+  while (current != &list->sentinel && current->value >= item->value) {
+    current = current->next;
+  }
+
+  rtos_list_prepend(current, item);
+}
