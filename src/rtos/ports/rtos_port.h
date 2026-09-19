@@ -1,5 +1,5 @@
-#ifndef RTOS_PORT_H
-#define RTOS_PORT_H
+#ifndef ARTOS_PORT_H
+#define ARTOS_PORT_H
 
 #include "rtos.h"
 #include "rtos/tasks.h"
@@ -29,4 +29,4 @@ typedef struct {
 
 extern volatile rtos_fault_info_t rtos_fault_info;
 
-#endif
+#endif // !ARTOS_PORT_H

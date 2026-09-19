@@ -185,10 +185,8 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
 }
 
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
-                                 bool *task_waken) {
-  if (task_waken != NULL)
-    *task_waken = false;
-  if (q == NULL || data == NULL || task_waken == NULL)
+                                 bool *task_woken) {
+  if (q == NULL || data == NULL)
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
@@ -205,17 +203,16 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
   bool need_unblock = q->read_list.count != 0;
   if (need_unblock) {
     rtos_unblock_task(q->read_list.sentinel.next, WAIT_SIGNALED);
-    *task_waken = true;
+    if (task_woken != NULL)
+      *task_woken = true;
   }
   rtos_port_exit_critical(prev_state);
   return true;
 }
 
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
-                                 bool *task_waken) {
-  if (task_waken != NULL)
-    *task_waken = false;
-  if (q == NULL || dst == NULL || task_waken == NULL)
+                                 bool *task_woken) {
+  if (q == NULL || dst == NULL)
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
@@ -232,7 +229,8 @@ bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
   bool need_unblock = q->write_list.count != 0;
   if (need_unblock) {
     rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
-    *task_waken = true;
+    if (task_woken != NULL)
+      *task_woken = true;
   }
   rtos_port_exit_critical(prev_state);
   return true;

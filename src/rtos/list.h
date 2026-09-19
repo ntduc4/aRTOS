@@ -1,5 +1,5 @@
-#ifndef RTOS_LIST_H
-#define RTOS_LIST_H
+#ifndef ARTOS_INTERNAL_LIST_H
+#define ARTOS_INTERNAL_LIST_H
 
 #include <stdint.h>
 
@@ -32,4 +32,4 @@ void rtos_list_remove(rtos_list_item_t *item);
 void rtos_list_insert_end(rtos_list_t *list, rtos_list_item_t *item);
 void rtos_list_insert_sorted(rtos_list_t *list, rtos_list_item_t *item);
 
-#endif // !RTOS_LIST_H
+#endif // !ARTOS_INTERNAL_LIST_H

@@ -1,5 +1,5 @@
-#ifndef RTOS_H
-#define RTOS_H
+#ifndef ARTOS_H
+#define ARTOS_H
 #include "rtos_config.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -43,12 +43,9 @@ void rtos_wait(uint32_t tick_count);
 void rtos_wait_until(uint32_t wake_tick);
 uint32_t rtos_get_tick(void);
 
-// ===================================
-//           Sync primitives
-// ===================================
-
-// Semaphore
-typedef struct rtos_binary_semaphore rtos_binary_semaphore_t;
+// =================================
+//           Dummy storage
+// =================================
 
 // Kernel private, do not use this
 typedef struct {
@@ -62,34 +59,48 @@ typedef struct {
   rtos_static_list_item_t _s;
 } rtos_static_list_t;
 
+// =============================
+//           Semaphore
+// =============================
+
+// Semaphore
+typedef struct rtos_semaphore rtos_semaphore_t;
+
 // Must not be copied or moved
 typedef struct {
   // Kernel private, do not touch this
-  bool _a;
+  uint32_t _a, _b;
   // Kernel private, do not touch this
   rtos_static_list_t _w;
 } rtos_semaphore_storage_t;
 
-rtos_binary_semaphore_t *
-rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
-                           bool initially_available);
+rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
+                                             bool initially_available);
+rtos_semaphore_t *
+rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
+                             uint32_t max_count, uint32_t initial_count);
 
 // tick_timeout == 0 won't block
 // tick_timeout == RTOS_DELAY_INFINITY will wait indefinitely until signaled
 // Return true if successfully obtain the semaphore, false if timeout
 // Task-context-only and may block, must not be in critical section beforehand
-bool rtos_binary_semaphore_wait(rtos_binary_semaphore_t *semaphore,
-                                uint32_t tick_timeout);
+bool rtos_semaphore_take(rtos_semaphore_t *semaphore, uint32_t tick_timeout);
 // Never block, return successfully take or not
-bool rtos_binary_semaphore_take_isr(rtos_binary_semaphore_t *semaphore);
-// Never block, return whether a task was awaken not, doesn't request scheduling
+bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
+// Never block, return true if signal was handled (not ignored), write to
+// pointer `true` if a task was waken, does not touch the pointer otherwise
+// Pointer is NULL-safe and accumulative
 // Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
-bool rtos_binary_semaphore_signal_isr(rtos_binary_semaphore_t *semaphore);
+bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore, bool *task_woken);
 
 // Will immidiately yield if there's one waiting for better latency
-void rtos_binary_semaphore_signal(rtos_binary_semaphore_t *semaphore);
+// Return true if signal was handled (not ignored)
+bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
 
-// Queue
+// =========================
+//           Queue
+// =========================
+
 // Gurantee FIFO of data, not which task get which data
 typedef struct rtos_queue rtos_queue_t;
 
@@ -118,15 +129,18 @@ bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
 bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
                         uint32_t tick_timeout);
 
-// Never block, return enqueue successful or not, write to pointer whether a
-// task was waken
-// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
+// Never block, return enqueue successful or not, write to pointer if a task was
+// waken
+// Pointer is NULL-safe and accumulative
+// Recommend to call `rtos_yield_from_isr` after finishing hardware
+// cleanup
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
-                                 bool *task_waken);
-// Never block, return dequeue successful or not, write to pointer whether a
-// task was waken
+                                 bool *task_woken);
+// Never block, return dequeue successful or not, write to pointer if a task was
+// waken
+// Pointer is NULL-safe and accumulative
 // Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
-                                 bool *task_waken);
+                                 bool *task_woken);
 
-#endif // !RTOS_H
+#endif // !ARTOS_H

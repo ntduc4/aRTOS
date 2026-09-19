@@ -1,5 +1,5 @@
-#ifndef RTOS_TASKS_H
-#define RTOS_TASKS_H
+#ifndef ARTOS_INTERNAL_TASKS_H
+#define ARTOS_INTERNAL_TASKS_H
 #include "list.h"
 #include "rtos.h"
 #include "stddef.h"
@@ -46,4 +46,4 @@ const rtos_tcb_t *rtos_scheduler_current_task(void);
 rtos_stack_word_t *
 rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer);
 
-#endif // !RTOS_TASKS_H
+#endif // !ARTOS_INTERNAL_TASKS_H

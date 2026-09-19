@@ -46,7 +46,7 @@ static rtos_queue_control_storage_t button_queue_control;
 static demo_message_t button_queue_items[BUTTON_QUEUE_CAPACITY];
 static rtos_queue_t *button_queue;
 static rtos_semaphore_storage_t uart_lock_storage;
-static rtos_binary_semaphore_t *uart_lock;
+static rtos_semaphore_t *uart_lock;
 static consumer_argument_t consumer_arguments[CONSUMER_COUNT] = {
     {1U, 2500U}, {2U, 3500U}, {3U, 4500U}};
 static uint32_t button_sequence;
@@ -125,13 +125,10 @@ void EXTI15_10_IRQHandler(void) {
   button_seen = true;
   last_button_tick = now;
   demo_message_t message = {DEMO_BUTTON, ++button_sequence, now};
-  bool shared_task_woken;
-  bool button_task_woken;
-  rtos_queue_enqueue_from_isr(button_queue, (uint8_t *)&message,
-                              &button_task_woken);
-  rtos_queue_enqueue_from_isr(queue, (uint8_t *)&message,
-                              &shared_task_woken);
-  if (shared_task_woken || button_task_woken)
+  bool task_woken = false;
+  rtos_queue_enqueue_from_isr(button_queue, (uint8_t *)&message, &task_woken);
+  rtos_queue_enqueue_from_isr(queue, (uint8_t *)&message, &task_woken);
+  if (task_woken)
     rtos_yield_from_isr();
 }
 
@@ -203,7 +200,7 @@ static void logger_task(void *argument) {
     demo_message_t message;
     if (!rtos_queue_dequeue(queue, (uint8_t *)&message,
                             RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
-      rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+      rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
       USART2_write_char('C');
       USART2_write_uint(consumer->id);
       USART2_write_string("\tNONE\t\t#NONE\t@");
@@ -211,12 +208,12 @@ static void logger_task(void *argument) {
       USART2_write_string("\ttimeout=");
       USART2_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
       USART2_write_char('\n');
-      rtos_binary_semaphore_signal(uart_lock);
+      rtos_semaphore_signal(uart_lock);
       continue;
     }
 
     uint32_t received_tick = rtos_get_tick();
-    rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+    rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
     USART2_write_char('C');
     USART2_write_uint(consumer->id);
     USART2_write_char('\t');
@@ -231,7 +228,7 @@ static void logger_task(void *argument) {
     USART2_write_string("\tage=");
     USART2_write_uint(received_tick - message.created_tick);
     USART2_write_char('\n');
-    rtos_binary_semaphore_signal(uart_lock);
+    rtos_semaphore_signal(uart_lock);
     rtos_wait(RTOS_MS_TO_TICKS(consumer->delay_ms));
   }
 }
@@ -244,7 +241,7 @@ static void button_logger_task(void *argument) {
       continue;
 
     uint32_t received_tick = rtos_get_tick();
-    rtos_binary_semaphore_wait(uart_lock, RTOS_DELAY_INFINITY);
+    rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
     USART2_write_string("BUTTON-ONLY\tBUTTON\t#");
     USART2_write_uint(message.sequence);
     USART2_write_string("\tcreated=@");
@@ -254,7 +251,7 @@ static void button_logger_task(void *argument) {
     USART2_write_string("\tage=");
     USART2_write_uint(received_tick - message.created_tick);
     USART2_write_char('\n');
-    rtos_binary_semaphore_signal(uart_lock);
+    rtos_semaphore_signal(uart_lock);
   }
 }
 
@@ -277,9 +274,9 @@ int main() {
   uart_lock = rtos_binary_semaphore_init(&uart_lock_storage, true);
   queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
                           sizeof(demo_message_t), QUEUE_CAPACITY);
-  button_queue = rtos_queue_init(
-      &button_queue_control, (uint8_t *)button_queue_items,
-      sizeof(demo_message_t), BUTTON_QUEUE_CAPACITY);
+  button_queue =
+      rtos_queue_init(&button_queue_control, (uint8_t *)button_queue_items,
+                      sizeof(demo_message_t), BUTTON_QUEUE_CAPACITY);
   if (uart_lock == NULL || queue == NULL || button_queue == NULL)
     for (;;) {
     }
@@ -312,7 +309,8 @@ int main() {
     for (;;) {
     }
 
-  if (rtos_task_create(load_task, NULL, load_stack, TASK_STACK_WORDS) != RTOS_OK)
+  if (rtos_task_create(load_task, NULL, load_stack, TASK_STACK_WORDS) !=
+      RTOS_OK)
     for (;;) {
     }
 
