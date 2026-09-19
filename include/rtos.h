@@ -13,9 +13,9 @@ typedef void (*rtos_task_fn_t)(void *argument);
 
 void rtos_init(void);
 
-// ===============
-// Tasks
-// ===============
+// =========================
+//           Tasks
+// =========================
 
 // Status
 typedef enum {
@@ -43,9 +43,9 @@ void rtos_wait(uint32_t tick_count);
 void rtos_wait_until(uint32_t wake_tick);
 uint32_t rtos_get_tick(void);
 
-// ===============
-// Sync primitives
-// ===============
+// ===================================
+//           Sync primitives
+// ===================================
 
 // Semaphore
 typedef struct rtos_binary_semaphore rtos_binary_semaphore_t;
@@ -88,5 +88,45 @@ bool rtos_binary_semaphore_signal_isr(rtos_binary_semaphore_t *semaphore);
 
 // Will immidiately yield if there's one waiting for better latency
 void rtos_binary_semaphore_signal(rtos_binary_semaphore_t *semaphore);
+
+// Queue
+// Gurantee FIFO of data, not which task get which data
+typedef struct rtos_queue rtos_queue_t;
+
+// Must not be copied or moved
+typedef struct {
+  // Kernel private, do not touch this
+  uint32_t _a, _b, _c, _d;
+  // Kernel private, do not touch this
+  size_t _e;
+  // Kernel private, do not touch this
+  rtos_static_list_t _r;
+  // Kernel private, do not touch this
+  rtos_static_list_t _w;
+  // Kernel private, do not touch this
+  uint8_t *_s;
+} rtos_queue_control_storage_t;
+
+// It is the user responsibility to make sure all item in storage is addressable
+// given the item_size, capacity and storage pointer
+rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
+                              uint8_t *storage, size_t item_size,
+                              uint32_t capacity);
+
+bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
+                        uint32_t tick_timeout);
+bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
+                        uint32_t tick_timeout);
+
+// Never block, return enqueue successful or not, write to pointer whether a
+// task was waken
+// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
+bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
+                                 bool *task_waken);
+// Never block, return dequeue successful or not, write to pointer whether a
+// task was waken
+// Recommend to call `rtos_yield_from_isr` after finishing hardware cleanup
+bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
+                                 bool *task_waken);
 
 #endif // !RTOS_H
