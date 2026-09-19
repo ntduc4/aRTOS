@@ -4,7 +4,6 @@
 #include "rtos/ports/rtos_port.h"
 #include "rtos/tasks.h"
 #include <assert.h>
-#include <stdbool.h>
 #include <string.h>
 
 // ==================================
@@ -231,8 +230,75 @@ bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
   return true;
 }
 
-bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
-                        uint32_t tick_timeout);
+bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
+  if (q == NULL || dst == NULL)
+    return false;
+
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+
+  if (tick_timeout == 0 && q->count == 0) {
+    rtos_port_exit_critical(prev_state);
+    return false;
+  }
+
+  if (q->count != 0) {
+    memcpy(dst, q->storage + (q->item_size * q->read_index), q->item_size);
+    q->count--;
+    if (++q->read_index == q->capacity)
+      q->read_index = 0;
+    bool need_unblock = q->write_list.count != 0;
+    if (need_unblock)
+      rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
+    rtos_port_exit_critical(prev_state);
+
+    if (need_unblock)
+      rtos_port_request_context_switch();
+    return true;
+  }
+
+  uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
+                           ? RTOS_DELAY_INFINITY
+                           : tick_timeout + rtos_current_tick();
+  bool infinity = tick_timeout == RTOS_DELAY_INFINITY;
+
+  // Guard from isr enqueuing before task
+  while (q->count == 0) {
+    // Same as timeout (If delta == 0 and still at capacity, return to user)
+    uint32_t delta = (wake_tick - rtos_current_tick());
+    if (!infinity && (delta == 0 || delta >= 0x80000000)) {
+      rtos_port_exit_critical(prev_state);
+      return false;
+    }
+
+    // Block self
+    rtos_block_current_task(wake_tick, &q->read_list, infinity);
+    rtos_port_exit_critical(prev_state);
+
+    rtos_port_request_context_switch();
+
+    // If running -> No longer blocked
+    prev_state = rtos_port_enter_critical();
+    bool timed_out = rtos_current_wait_reason() == WAIT_TIMED_OUT;
+    rtos_clear_current_wait_reason();
+    if (timed_out) {
+      rtos_port_exit_critical(prev_state);
+      return false;
+    }
+  }
+
+  memcpy(dst, q->storage + (q->item_size * q->read_index), q->item_size);
+  q->count--;
+  if (++q->read_index == q->capacity)
+    q->read_index = 0;
+  bool need_unblock = q->write_list.count != 0;
+  if (need_unblock)
+    rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
+  rtos_port_exit_critical(prev_state);
+
+  if (need_unblock)
+    rtos_port_request_context_switch();
+  return true;
+}
 
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
                                  bool *task_waken) {
@@ -261,5 +327,29 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
   return true;
 }
 
-bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
-                                 bool *task_waken);
+bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
+                                 bool *task_waken) {
+  if (task_waken != NULL)
+    *task_waken = false;
+  if (q == NULL || dst == NULL || task_waken == NULL)
+    return false;
+
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+
+  if (q->count == 0) {
+    rtos_port_exit_critical(prev_state);
+    return false;
+  }
+
+  memcpy(dst, q->storage + (q->item_size * q->read_index), q->item_size);
+  q->count--;
+  if (++q->read_index == q->capacity)
+    q->read_index = 0;
+  bool need_unblock = q->write_list.count != 0;
+  if (need_unblock) {
+    rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
+    *task_waken = true;
+  }
+  rtos_port_exit_critical(prev_state);
+  return true;
+}
