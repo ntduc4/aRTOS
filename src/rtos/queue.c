@@ -50,29 +50,6 @@ bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
 
-  if (tick_timeout == 0 && q->count == q->capacity) {
-    rtos_port_exit_critical(prev_state);
-    return false;
-  }
-
-  if (q->count != q->capacity) {
-    memcpy(q->storage + (q->item_size * q->write_index), data, q->item_size);
-    q->count++;
-    if (++q->write_index == q->capacity)
-      q->write_index = 0;
-    bool need_unblock = q->read_list.count != 0;
-    // greater than or equal
-    bool gt_prio = need_unblock && (q->read_list.sentinel.next->value >
-                                    rtos_current_effective_priority());
-    if (need_unblock)
-      rtos_unblock_task(q->read_list.sentinel.next, WAIT_SIGNALED);
-    rtos_port_exit_critical(prev_state);
-
-    if (gt_prio)
-      rtos_port_request_context_switch();
-    return true;
-  }
-
   uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
                            ? RTOS_DELAY_INFINITY
                            : tick_timeout + rtos_current_tick();
@@ -125,28 +102,6 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-
-  if (tick_timeout == 0 && q->count == 0) {
-    rtos_port_exit_critical(prev_state);
-    return false;
-  }
-
-  if (q->count != 0) {
-    memcpy(dst, q->storage + (q->item_size * q->read_index), q->item_size);
-    q->count--;
-    if (++q->read_index == q->capacity)
-      q->read_index = 0;
-    bool need_unblock = q->write_list.count != 0;
-    bool gt_prio = need_unblock && (q->write_list.sentinel.next->value >
-                                    rtos_current_effective_priority());
-    if (need_unblock)
-      rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
-    rtos_port_exit_critical(prev_state);
-
-    if (gt_prio)
-      rtos_port_request_context_switch();
-    return true;
-  }
 
   uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
                            ? RTOS_DELAY_INFINITY
