@@ -44,8 +44,14 @@ rtos_wait_reason_t rtos_current_wait_reason(void);
 void rtos_clear_current_wait_reason(void);
 uint8_t rtos_current_effective_priority(void);
 
-// For debug purposes ONLY
-const rtos_tcb_t *rtos_scheduler_current_task(void);
+rtos_tcb_t *rtos_scheduler_current_task(void);
+
+void rtos_increment_mutex_count(rtos_tcb_t *task);
+void rtos_decrement_mutex_count(rtos_tcb_t *task);
+void rtos_priority_inherit(rtos_tcb_t *inheritor, uint8_t donor_priority);
+bool rtos_priority_relinquish_after_unlock(rtos_tcb_t *task);
+bool rtos_priority_disinherit_after_timeout(rtos_tcb_t *task,
+                                            uint8_t required_priority);
 
 // IMPORTANT FOR PORT, PORT NEED TO CALL THIS
 rtos_stack_word_t *

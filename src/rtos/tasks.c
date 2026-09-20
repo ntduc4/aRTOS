@@ -254,7 +254,7 @@ void rtos_tick_handler(void) {
 
 uint32_t rtos_current_tick(void) { return _ticks; }
 
-const rtos_tcb_t *rtos_scheduler_current_task(void) { return _cur_task; }
+rtos_tcb_t *rtos_scheduler_current_task(void) { return _cur_task; }
 
 rtos_wait_reason_t rtos_current_wait_reason(void) {
   if (_cur_task == NULL)
@@ -275,4 +275,68 @@ uint8_t rtos_current_effective_priority(void) {
   if (_cur_task == NULL)
     return 0;
   return _cur_task->effective_priority;
+}
+
+void rtos_increment_mutex_count(rtos_tcb_t *task) {
+  if (task != NULL && task->mutexes_held != 0xFFU)
+    task->mutexes_held++;
+}
+void rtos_decrement_mutex_count(rtos_tcb_t *task) {
+  if (task != NULL && task->mutexes_held != 0U)
+    task->mutexes_held--;
+}
+
+static bool rtos_set_effective_priority(rtos_tcb_t *task,
+                                        uint8_t new_priority) {
+  if (task == NULL || task->effective_priority == new_priority ||
+      task->priority > new_priority || new_priority >= RTOS_PRIORITY_COUNT)
+    return false;
+
+  uint8_t old_priority = task->effective_priority;
+  rtos_list_t *old_ready_list = &_ready_l[old_priority];
+  rtos_list_t *event_list = task->event_item.container;
+  bool is_ready = old_ready_list == task->state_item.container;
+  if (is_ready) {
+    rtos_list_remove(&task->state_item);
+    if (old_ready_list->count == 0)
+      _ready_bitmap &= ~(1U << old_priority);
+  }
+  if (event_list != NULL)
+    rtos_list_remove(&task->event_item);
+
+  task->effective_priority = new_priority;
+
+  if (event_list != NULL) {
+    task->event_item.value = new_priority;
+    rtos_list_insert_reversed_sorted(event_list, &task->event_item);
+  }
+
+  if (is_ready)
+    rtos_insert_ready_list(task);
+
+  return true;
+}
+
+void rtos_priority_inherit(rtos_tcb_t *inheritor, uint8_t donor_priority) {
+  if (inheritor == NULL || inheritor->effective_priority >= donor_priority)
+    return;
+  rtos_set_effective_priority(inheritor, donor_priority);
+}
+
+bool rtos_priority_relinquish_after_unlock(rtos_tcb_t *task) {
+  if (task == NULL || task->mutexes_held != 0)
+    return false;
+  return rtos_set_effective_priority(task, task->priority);
+}
+
+bool rtos_priority_disinherit_after_timeout(rtos_tcb_t *task,
+                                            uint8_t required_priority) {
+  if (task == NULL || task->mutexes_held != 1)
+    return false;
+
+  uint8_t new_priority =
+      required_priority > task->priority ? required_priority : task->priority;
+  if (new_priority < task->effective_priority)
+    return rtos_set_effective_priority(task, new_priority);
+  return false;
 }

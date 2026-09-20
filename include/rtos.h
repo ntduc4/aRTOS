@@ -364,4 +364,21 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
                                  bool *gt_task_woken);
 
+// =========================
+//           Mutex
+// =========================
+
+typedef struct rtos_mutex rtos_mutex_t;
+
+typedef struct {
+  /** @cond INTERNAL */
+  void *_a;
+  rtos_static_list_t _w;
+  /** @endcond */
+} rtos_mutex_storage_t;
+
+rtos_mutex_t *rtos_mutex_init(rtos_mutex_storage_t *storage);
+bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t timeout);
+bool rtos_mutex_unlock(rtos_mutex_t *mutex);
+
 #endif // !ARTOS_H
