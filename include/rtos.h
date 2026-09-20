@@ -221,20 +221,20 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
 /**
  * @brief Signal a semaphore from interrupt context.
  * @param semaphore Semaphore to signal.
- * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ * @param[in,out] gt_task_woken Optional accumulating wake flag. The caller
  *        should initialize it to false before the first ISR-safe kernel
  *        operation. The function only changes it to true when it unblocks a
- *        task whose priority is equal to or higher than the interrupted task.
+ *        task whose priority is higher than the interrupted task.
  * @return True if the token was stored or handed directly to a waiting task.
  * @return False if @p semaphore is NULL or already at its maximum count.
  * @note The highest-priority waiter is unblocked first. Equal-priority waiters
  *       are served FIFO.
- * @note This operation never blocks and @p gte_task_woken may be NULL.
- * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note This operation never blocks and @p gt_task_woken may be NULL.
+ * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
-                               bool *gte_task_woken);
+                               bool *gt_task_woken);
 
 /**
  * @brief Signal a semaphore from task context.
@@ -243,8 +243,8 @@ bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
  * @return False if @p semaphore is NULL or already at its maximum count.
  * @note The highest-priority waiter is unblocked first. Equal-priority waiters
  *       are served FIFO.
- * @note Requests a context switch only when the unblocked task has equal or
- *       higher priority than the calling task.
+ * @note Requests a context switch only when the unblocked task has higher
+ *       priority than the calling task.
  */
 bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
 
@@ -298,8 +298,8 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
  * @return True if the item was enqueued, otherwise false for invalid arguments
  *         or timeout.
  * @note A successful enqueue unblocks the highest-priority waiting reader. A
- *       context switch is requested if that reader has equal or higher
- *       priority than the calling task.
+ *       context switch is requested if that reader has higher priority than
+ *       the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
@@ -314,8 +314,8 @@ bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
  * @return True if an item was dequeued, otherwise false for invalid arguments
  *         or timeout.
  * @note A successful dequeue unblocks the highest-priority waiting writer. A
- *       context switch is requested if that writer has equal or higher
- *       priority than the calling task.
+ *       context switch is requested if that writer has higher priority than
+ *       the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
@@ -325,38 +325,38 @@ bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
  * @brief Copy one item into a queue from interrupt context.
  * @param queue Queue to receive the item.
  * @param data Source buffer containing at least the queue's item size in bytes.
- * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ * @param[in,out] gt_task_woken Optional accumulating wake flag. The caller
  *        should initialize it to false before the first ISR-safe kernel
  *        operation. The function only changes it to true when it unblocks a
- *        task whose priority is equal to or higher than the interrupted task.
+ *        task whose priority is higher than the interrupted task.
  * @return True if the item was enqueued, otherwise false if the arguments are
  *         invalid or the queue is full.
  * @note The highest-priority waiting reader is unblocked first. Equal-priority
  *       waiters are served FIFO.
- * @note This operation never blocks and @p gte_task_woken may be NULL.
- * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note This operation never blocks and @p gt_task_woken may be NULL.
+ * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
-                                 bool *gte_task_woken);
+                                 bool *gt_task_woken);
 
 /**
  * @brief Copy one item out of a queue from interrupt context.
  * @param queue Queue from which to receive the item.
  * @param dst Destination buffer with space for the queue's item size in bytes.
- * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ * @param[in,out] gt_task_woken Optional accumulating wake flag. The caller
  *        should initialize it to false before the first ISR-safe kernel
  *        operation. The function only changes it to true when it unblocks a
- *        task whose priority is equal to or higher than the interrupted task.
+ *        task whose priority is higher than the interrupted task.
  * @return True if an item was dequeued, otherwise false if the arguments are
  *         invalid or the queue is empty.
  * @note The highest-priority waiting writer is unblocked first. Equal-priority
  *       waiters are served FIFO.
- * @note This operation never blocks and @p gte_task_woken may be NULL.
- * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note This operation never blocks and @p gt_task_woken may be NULL.
+ * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
-                                 bool *gte_task_woken);
+                                 bool *gt_task_woken);
 
 #endif // !ARTOS_H

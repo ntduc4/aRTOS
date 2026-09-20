@@ -147,15 +147,15 @@ queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
 Task operations support zero, finite, and infinite timeouts. Readers and writers
 waiting on a queue are ordered by priority, with FIFO ordering among tasks at
 the same priority. ISR operations are always nonblocking and report whether an
-equal- or higher-priority task was unblocked.
+higher-priority task was unblocked.
 
 ### Interrupt-Safe Wakeups
 
 ISR wake flags accumulate across multiple kernel operations. Initialize the
 flag once, pass it to each operation, finish hardware cleanup, then request a
 context switch if necessary. An operation sets the flag only when it unblocks a
-task whose priority is equal to or higher than the interrupted task. It never
-clears a flag that is already true.
+task whose priority is higher than the interrupted task. It never clears a flag
+that is already true.
 
 ```c
 void EXTI15_10_IRQHandler(void) {
@@ -172,8 +172,8 @@ void EXTI15_10_IRQHandler(void) {
 ```
 
 The wake pointer is optional. Passing `NULL` performs the operation without
-reporting whether scheduling should be requested. Lower-priority waiters still
-become ready, but they do not set the wake flag.
+reporting whether scheduling should be requested. Equal- and lower-priority
+waiters still become ready, but they do not set the wake flag.
 
 ## Showcase Application
 
