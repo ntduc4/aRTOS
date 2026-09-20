@@ -19,7 +19,7 @@ is explicit and bounded before the scheduler starts.
 ## Highlights
 
 - Completely static memory model with no heap allocation
-- Preemptive round-robin scheduler driven by SysTick
+- Preemptive fixed-priority scheduler with round-robin time slicing
 - Cortex-M4F context switching through SVC and PendSV
 - Caller-owned, 8-byte-aligned task stacks
 - Intrusive ready, delayed, suspended, and event wait lists
@@ -66,14 +66,20 @@ where necessary and adding that board's build and hardware initialization.
 
 ### Scheduling
 
-The scheduler is preemptive and round-robin. SysTick advances the kernel tick
-and requests scheduling, while PendSV saves the current task context, selects
-the next ready task, and restores its context. SVC performs the transition into
-the first task.
+The scheduler is preemptive and fixed-priority. Priority `0` is the lowest, and
+larger values represent higher priorities. The scheduler always selects a ready
+task at the highest priority. Tasks at the same priority execute round-robin in
+FIFO order.
 
-There are currently no task priorities. Every ready user task receives time in
-FIFO round-robin order. When no user task can run, the idle task executes
-`WFI` until an interrupt arrives.
+SysTick advances the kernel tick, wakes expired tasks, and requests scheduling
+when an equal- or higher-priority task is ready. PendSV saves the current task
+context, selects the next ready task, and restores its context. SVC performs the
+transition into the highest-priority task at startup. When no user task can run,
+the idle task executes `WFI` until an interrupt arrives.
+
+Creating a task makes it ready but does not immediately request a context
+switch. A priority must be in the range `0` through
+`RTOS_PRIORITY_COUNT - 1`.
 
 ### Blocking And Time
 
@@ -93,7 +99,8 @@ a valid future horizon of `1` through `0x7fffffff` ticks.
 
 Binary and counting semaphores share the same API. A take can be nonblocking,
 bounded by a timeout, or infinite. A signal either stores a token or hands it
-directly to a waiting task.
+directly to the highest-priority waiting task. Equal-priority waiters are served
+in FIFO order.
 
 ```c
 static rtos_semaphore_storage_t lock_storage;
@@ -137,14 +144,18 @@ queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
                         sizeof(message_t), QUEUE_CAPACITY);
 ```
 
-Task operations support zero, finite, and infinite timeouts. ISR operations are
-always nonblocking and report whether a task was unblocked.
+Task operations support zero, finite, and infinite timeouts. Readers and writers
+waiting on a queue are ordered by priority, with FIFO ordering among tasks at
+the same priority. ISR operations are always nonblocking and report whether an
+equal- or higher-priority task was unblocked.
 
 ### Interrupt-Safe Wakeups
 
 ISR wake flags accumulate across multiple kernel operations. Initialize the
 flag once, pass it to each operation, finish hardware cleanup, then request a
-context switch if necessary.
+context switch if necessary. An operation sets the flag only when it unblocks a
+task whose priority is equal to or higher than the interrupted task. It never
+clears a flag that is already true.
 
 ```c
 void EXTI15_10_IRQHandler(void) {
@@ -161,14 +172,15 @@ void EXTI15_10_IRQHandler(void) {
 ```
 
 The wake pointer is optional. Passing `NULL` performs the operation without
-reporting whether scheduling should be requested.
+reporting whether scheduling should be requested. Lower-priority waiters still
+become ready, but they do not set the wake flag.
 
 ## Showcase Application
 
 `src/main.c` runs a hardware demonstration on the Nucleo-F446RE:
 
 ```text
-SysTick -> preemptive scheduler
+SysTick -> preemptive fixed-priority scheduler
 LED task -> timed blink pattern
 Heartbeat task -> shared queue -> three competing logger tasks
 PC13 button ISR -> shared queue -> logger tasks
@@ -188,6 +200,9 @@ The demo exercises seven user tasks with different blocking patterns:
 | Logger C3 | Consumes shared messages, then waits 4.5 seconds |
 | Button logger | Immediately consumes the dedicated button queue |
 | Load task | Applies CPU pressure and yields explicitly |
+
+All showcase tasks currently use `DEFAULT_PRIORITY`, so the application also
+demonstrates FIFO round-robin scheduling among equal-priority tasks.
 
 The blue user button on PC13 is handled by EXTI with a 50 ms software debounce.
 Each accepted event is copied into both queues from the ISR. USART2 runs at
@@ -243,7 +258,10 @@ All application memory is declared before startup:
 ```c
 #include "rtos.h"
 
-enum { TASK_STACK_WORDS = 128 };
+enum {
+  TASK_STACK_WORDS = 128,
+  WORKER_PRIORITY = 1
+};
 
 static rtos_stack_word_t worker_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
@@ -261,7 +279,8 @@ int main(void) {
   hardware_init();
   rtos_init();
 
-  if (rtos_task_create(worker, NULL, worker_stack, TASK_STACK_WORDS) != RTOS_OK)
+  if (rtos_task_create(worker, NULL, worker_stack, TASK_STACK_WORDS,
+                       WORKER_PRIORITY) != RTOS_OK)
     for (;;) {
     }
 
@@ -283,6 +302,7 @@ Kernel configuration lives in `include/rtos_config.h`:
 | --- | ---: | --- |
 | `RTOS_MAX_TASKS` | `16` | Maximum number of user tasks in the static TCB pool |
 | `RTOS_TICK_HZ` | `1000` | SysTick frequency and kernel time base |
+| `RTOS_PRIORITY_COUNT` | `2` | Number of task priority levels, from `0` through `RTOS_PRIORITY_COUNT - 1` |
 | `RTOS_MIN_STACK_WORDS` | `64` | Minimum accepted task stack size in machine words |
 
 Task stack tops must be 8-byte aligned. The current Cortex-M4F port saves the
@@ -315,7 +335,8 @@ platformio.ini           PlatformIO build and test environments
 Implemented:
 
 - Static task creation and startup
-- Cooperative yield and preemptive round-robin scheduling
+- Preemptive fixed-priority scheduling with round-robin among equal priorities
+- Priority-ordered semaphore and queue waiters
 - Relative, absolute, finite, and infinite blocking
 - Binary and counting semaphores
 - Bounded message queues
@@ -324,7 +345,7 @@ Implemented:
 
 Not yet implemented:
 
-- Task priorities and configurable scheduling policies
+- Configurable preemption and time-slicing policies
 - Mutex ownership and priority inheritance
 - Stack watermark and overflow detection
 - Task inspection APIs and production-level diagnostics

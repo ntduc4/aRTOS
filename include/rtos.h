@@ -3,7 +3,13 @@
 
 /**
  * @file rtos.h
- * @brief Public API for the completely static aRTOS kernel.
+ * @brief Public API for the completely static, fixed-priority aRTOS kernel.
+ *
+ * @par Scheduling model
+ * aRTOS uses preemptive fixed-priority scheduling. Priority 0 is the lowest
+ * priority, and larger values represent higher priorities. The scheduler
+ * always selects a ready task at the highest priority. Ready tasks at the same
+ * priority execute round-robin in FIFO order.
  */
 
 #include "rtos_config.h"
@@ -57,32 +63,43 @@ typedef uintptr_t rtos_stack_word_t;
  * @param argument Argument passed to @p entry. May be NULL.
  * @param stack Persistent stack buffer owned by the caller.
  * @param stack_word_count Number of rtos_stack_word_t elements in @p stack.
+ * @param priority Task priority in the range 0 through
+ *        `RTOS_PRIORITY_COUNT - 1`. Larger values have higher priority.
  * @return RTOS_OK on success.
  * @return RTOS_ERROR_INVALID_ARGUMENT if @p entry or @p stack is NULL, or if
- *         the stack top is not 8-byte aligned.
+ *         @p priority is outside the configured range, or if the stack top is
+ *         not 8-byte aligned.
  * @return RTOS_ERROR_STACK_TOO_SMALL if the stack contains fewer than
  *         RTOS_MIN_STACK_WORDS elements.
  * @return RTOS_ERROR_TASK_LIMIT if the static task pool is full.
  * @warning The stack storage must remain valid and must not be moved while the
  *          task exists.
+ * @note A successfully created task becomes ready, but this function does not
+ *       immediately request a context switch.
  */
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
                                uint32_t stack_word_count, uint8_t priority);
 
 /**
- * @brief Start scheduling the created tasks.
+ * @brief Start scheduling with the highest-priority created task.
  * @return RTOS_ERROR_NO_TASKS if no user task has been created.
  * @note A successful call does not return.
  */
 rtos_status_t rtos_start(void);
 
-/** @brief Voluntarily yield the processor from task context. */
+/**
+ * @brief Voluntarily yield the processor from task context.
+ * @note The current task moves behind other ready tasks at its priority. A
+ *       lower-priority task cannot run while a higher-priority task is ready.
+ */
 void rtos_yield(void);
 
 /**
  * @brief Request a context switch from interrupt context.
  * @note Call after the interrupt source and peripheral state have been handled.
+ * @note The scheduler selects the highest-priority ready task. Among equal
+ *       priorities, the task waiting longest is selected first.
  */
 void rtos_yield_from_isr(void);
 
@@ -90,6 +107,8 @@ void rtos_yield_from_isr(void);
  * @brief Block the current task for a relative number of ticks.
  * @param tick_count Number of ticks to wait. Zero behaves like rtos_yield().
  *        RTOS_DELAY_INFINITY blocks indefinitely.
+ * @note When the delay expires, the task becomes ready and preempts the running
+ *       task if it has equal or higher priority.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 void rtos_wait(uint32_t tick_count);
@@ -100,6 +119,8 @@ void rtos_wait(uint32_t tick_count);
  * @note RTOS_DELAY_INFINITY has no special meaning for this function.
  * @note The valid future horizon is 1 through 0x7fffffff ticks. A value outside
  *       that horizon is treated as current or past time and does not block.
+ * @note On expiry, the task becomes ready and preempts the running task if it
+ *       has equal or higher priority.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 void rtos_wait_until(uint32_t wake_tick);
@@ -130,7 +151,11 @@ typedef struct {
 //           Semaphore
 // =============================
 
-/** @brief Opaque binary or counting semaphore type. */
+/**
+ * @brief Opaque binary or counting semaphore type.
+ * @note Waiting tasks are ordered by priority, with FIFO ordering among tasks
+ *       at the same priority.
+ */
 typedef struct rtos_semaphore rtos_semaphore_t;
 
 /**
@@ -179,6 +204,8 @@ rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
  *        RTOS_DELAY_INFINITY waits indefinitely.
  * @return True if a token was obtained, otherwise false for an invalid handle
  *         or timeout.
+ * @note If the task blocks, semaphore signals are handed to the
+ *       highest-priority waiter first. Equal-priority waiters are served FIFO.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 bool rtos_semaphore_take(rtos_semaphore_t *semaphore, uint32_t tick_timeout);
@@ -194,13 +221,16 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
 /**
  * @brief Signal a semaphore from interrupt context.
  * @param semaphore Semaphore to signal.
- * @param[in,out] task_woken Optional accumulating wake flag. The caller should
- *        initialize it to false before the first ISR-safe kernel operation. The
- *        function only changes it to true when a task is unblocked.
+ * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ *        should initialize it to false before the first ISR-safe kernel
+ *        operation. The function only changes it to true when it unblocks a
+ *        task whose priority is equal to or higher than the interrupted task.
  * @return True if the token was stored or handed directly to a waiting task.
  * @return False if @p semaphore is NULL or already at its maximum count.
- * @note This operation never blocks and @p task_woken may be NULL.
- * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ * @note The highest-priority waiter is unblocked first. Equal-priority waiters
+ *       are served FIFO.
+ * @note This operation never blocks and @p gte_task_woken may be NULL.
+ * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
@@ -211,7 +241,10 @@ bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
  * @param semaphore Semaphore to signal.
  * @return True if the token was stored or handed directly to a waiting task.
  * @return False if @p semaphore is NULL or already at its maximum count.
- * @note Requests a context switch when a waiting task is unblocked.
+ * @note The highest-priority waiter is unblocked first. Equal-priority waiters
+ *       are served FIFO.
+ * @note Requests a context switch only when the unblocked task has equal or
+ *       higher priority than the calling task.
  */
 bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
 
@@ -221,8 +254,8 @@ bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
 
 /**
  * @brief Opaque fixed-capacity message queue type.
- * @note Message ordering is FIFO. Ordering among competing tasks is not
- *       guaranteed.
+ * @note Message ordering is FIFO. Readers and writers waiting on the queue are
+ *       ordered by priority, with FIFO ordering among equal-priority tasks.
  */
 typedef struct rtos_queue rtos_queue_t;
 
@@ -264,6 +297,9 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
  *        RTOS_DELAY_INFINITY waits indefinitely.
  * @return True if the item was enqueued, otherwise false for invalid arguments
  *         or timeout.
+ * @note A successful enqueue unblocks the highest-priority waiting reader. A
+ *       context switch is requested if that reader has equal or higher
+ *       priority than the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
@@ -277,6 +313,9 @@ bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
  *        RTOS_DELAY_INFINITY waits indefinitely.
  * @return True if an item was dequeued, otherwise false for invalid arguments
  *         or timeout.
+ * @note A successful dequeue unblocks the highest-priority waiting writer. A
+ *       context switch is requested if that writer has equal or higher
+ *       priority than the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
 bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
@@ -286,13 +325,16 @@ bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
  * @brief Copy one item into a queue from interrupt context.
  * @param queue Queue to receive the item.
  * @param data Source buffer containing at least the queue's item size in bytes.
- * @param[in,out] task_woken Optional accumulating wake flag. The caller should
- *        initialize it to false before the first ISR-safe kernel operation. The
- *        function only changes it to true when a task is unblocked.
+ * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ *        should initialize it to false before the first ISR-safe kernel
+ *        operation. The function only changes it to true when it unblocks a
+ *        task whose priority is equal to or higher than the interrupted task.
  * @return True if the item was enqueued, otherwise false if the arguments are
  *         invalid or the queue is full.
- * @note This operation never blocks and @p task_woken may be NULL.
- * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ * @note The highest-priority waiting reader is unblocked first. Equal-priority
+ *       waiters are served FIFO.
+ * @note This operation never blocks and @p gte_task_woken may be NULL.
+ * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
@@ -302,13 +344,16 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
  * @brief Copy one item out of a queue from interrupt context.
  * @param queue Queue from which to receive the item.
  * @param dst Destination buffer with space for the queue's item size in bytes.
- * @param[in,out] task_woken Optional accumulating wake flag. The caller should
- *        initialize it to false before the first ISR-safe kernel operation. The
- *        function only changes it to true when a task is unblocked.
+ * @param[in,out] gte_task_woken Optional accumulating wake flag. The caller
+ *        should initialize it to false before the first ISR-safe kernel
+ *        operation. The function only changes it to true when it unblocks a
+ *        task whose priority is equal to or higher than the interrupted task.
  * @return True if an item was dequeued, otherwise false if the arguments are
  *         invalid or the queue is empty.
- * @note This operation never blocks and @p task_woken may be NULL.
- * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
+ * @note The highest-priority waiting writer is unblocked first. Equal-priority
+ *       waiters are served FIFO.
+ * @note This operation never blocks and @p gte_task_woken may be NULL.
+ * @note If @p gte_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
