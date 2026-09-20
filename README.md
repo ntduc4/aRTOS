@@ -77,9 +77,12 @@ context, selects the next ready task, and restores its context. SVC performs the
 transition into the highest-priority task at startup. When no user task can run,
 the idle task executes `WFI` until an interrupt arrives.
 
-Creating a task makes it ready but does not immediately request a context
-switch. A priority must be in the range `0` through
-`RTOS_PRIORITY_COUNT - 1`.
+Creating a task before scheduler startup makes it ready without requesting a
+context switch. Creating one later from task context requests a context switch
+if the new task has strictly higher priority than the calling task. Equal- and
+lower-priority tasks become ready without an immediate switch. Task creation is
+not supported from interrupt context. A priority must be in the range `0`
+through `RTOS_PRIORITY_COUNT - 1`.
 
 ### Blocking And Time
 

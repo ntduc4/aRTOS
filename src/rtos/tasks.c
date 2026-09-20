@@ -141,7 +141,11 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                     priority);
       _tsk_cnt++;
       rtos_insert_ready_list(&_task_pool[i]);
+      bool should_yield =
+          _cur_task != NULL && priority > _cur_task->effective_priority;
       rtos_port_exit_critical(prev_state);
+      if (should_yield)
+        rtos_port_request_context_switch();
       return RTOS_OK;
     }
   }

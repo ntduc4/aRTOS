@@ -74,8 +74,13 @@ typedef uintptr_t rtos_stack_word_t;
  * @return RTOS_ERROR_TASK_LIMIT if the static task pool is full.
  * @warning The stack storage must remain valid and must not be moved while the
  *          task exists.
- * @note A successfully created task becomes ready, but this function does not
- *       immediately request a context switch.
+ * @warning Do not call this function from interrupt context.
+ * @note Before the scheduler starts, a successfully created task becomes ready
+ *       without requesting a context switch.
+ * @note When called from task context after the scheduler starts, this function
+ *       requests a context switch if the new task has higher priority than the
+ *       calling task. Equal- and lower-priority tasks become ready without an
+ *       immediate context switch.
  */
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,

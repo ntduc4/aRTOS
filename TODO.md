@@ -51,10 +51,10 @@
 
 ## Week 9: Optional Priority Scheduling
 - [ ] Add compile-time scheduling configuration (max priorities, preemption, time slicing), FreeRTOS-style `[S]`
-- [ ] Extend task creation and the TCB with a priority field `[S]`
-- [ ] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
-- [ ] Add optional O(1) selection via ready mask + count-leading-zeros instead of a flat scan `[S]`
-- [ ] Integrate priorities with blocking and synchronization wake-ups `[S]`
+- [x] Extend task creation and the TCB with a priority field `[S]`
+- [x] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
+- [x] Add optional O(1) selection via ready mask + count-leading-zeros instead of a flat scan `[S]`
+- [x] Integrate priorities with blocking and synchronization wake-ups `[S]`
 - [ ] Demonstrate high-, medium-, and low-priority task behavior `[S]`
 
 ## Week 10: Optional Mutex
