@@ -402,3 +402,7 @@ pio test -e nucleo_f446re_test
 
 Queue, semaphore, mutex, scheduler, and long-duration hardware coverage are
 planned as part of the stabilization work.
+
+## License
+
+aRTOS is licensed under the [MIT License](LICENSE).
