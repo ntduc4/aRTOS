@@ -25,6 +25,7 @@ is explicit and bounded before the scheduler starts.
 - Intrusive ready, delayed, suspended, and event wait lists
 - Relative and absolute blocking delays with tick-wrap handling
 - Binary and counting semaphores with finite or infinite waits
+- Nonrecursive mutexes with simplified priority inheritance
 - Fixed-capacity FIFO queues with caller-provided storage
 - Nonblocking queue and semaphore operations for interrupt handlers
 - Idle task using `WFI` when no user task is ready
@@ -41,6 +42,7 @@ runtime allocation failure after initialization.
 | Task control blocks | Fixed kernel pool sized by `RTOS_MAX_TASKS` |
 | Task stacks | Arrays supplied by the application |
 | Semaphore state | `rtos_semaphore_storage_t` supplied by the application |
+| Mutex state | `rtos_mutex_storage_t` supplied by the application |
 | Queue state | `rtos_queue_control_storage_t` supplied by the application |
 | Queue items | Fixed application-owned byte buffer |
 | Idle task | Fixed kernel-owned stack and control block |
@@ -53,11 +55,11 @@ the kernel uses them.
 
 ### Portability
 
-The scheduler, task model, intrusive lists, queues, and semaphores are kept
-separate from low-level context switching and interrupt control. An architecture
-port provides task stack initialization, critical sections, scheduler startup,
-context-switch requests, and exception handlers. Board code supplies clock and
-peripheral setup for the application.
+The scheduler, task model, intrusive lists, queues, semaphores, and mutexes are
+kept separate from low-level context switching and interrupt control. An
+architecture port provides task stack initialization, critical sections,
+scheduler startup, context-switch requests, and exception handlers. Board code
+supplies clock and peripheral setup for the application.
 
 Only the Cortex-M4F port is implemented today. Its current reference target is
 the STM32F446RE, using CMSIS, SysTick, SVC, PendSV, and the hardware floating
@@ -125,6 +127,37 @@ static rtos_semaphore_t *slots;
 
 slots = rtos_counting_semaphore_init(&slots_storage, 8U, 8U);
 ```
+
+### Mutexes
+
+Mutexes provide task ownership and simplified FreeRTOS-style priority
+inheritance. They are nonrecursive and task-context-only. A lock can be
+nonblocking, bounded by a timeout, or infinite. Only the owning task can unlock
+the mutex.
+
+```c
+static rtos_mutex_storage_t mutex_storage;
+static rtos_mutex_t *mutex;
+
+mutex = rtos_mutex_init(&mutex_storage);
+
+if (rtos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+  use_shared_resource();
+  rtos_mutex_unlock(mutex);
+}
+```
+
+Waiters are ordered by effective priority and FIFO among equal priorities.
+Unlock transfers ownership directly to the selected waiter. A lower-priority
+owner inherits the highest waiter's effective priority, and releasing its final
+held mutex restores its base priority. If a waiter times out, priority is
+recalculated only when the owner holds exactly one mutex; otherwise the inherited
+priority is retained conservatively.
+
+Inheritance is intentionally simplified. A priority increase is applied to the
+direct mutex owner but is not propagated transitively through an existing chain
+of blocked mutex owners. Mutex operations are not supported from interrupt
+context; use a semaphore, queue, or another ISR-safe mechanism instead.
 
 ### Message Queues
 
@@ -324,6 +357,7 @@ src/
     list.c               Intrusive list implementation
     queue.c              Static bounded message queues
     semaphore.c          Binary and counting semaphores
+    mutex.c              Nonrecursive mutexes and priority inheritance
     rtos.c               Public kernel entry points
     ports/
       rtos_port.c        Cortex-M4F context switching and exception handlers
@@ -340,6 +374,7 @@ Implemented:
 - Static task creation and startup
 - Preemptive fixed-priority scheduling with round-robin among equal priorities
 - Priority-ordered semaphore and queue waiters
+- Nonrecursive mutexes with direct handoff and simplified priority inheritance
 - Relative, absolute, finite, and infinite blocking
 - Binary and counting semaphores
 - Bounded message queues
@@ -349,7 +384,7 @@ Implemented:
 Not yet implemented:
 
 - Configurable preemption and time-slicing policies
-- Mutex ownership and priority inheritance
+- Recursive mutexes and transitive priority-inheritance propagation
 - Stack watermark and overflow detection
 - Task inspection APIs and production-level diagnostics
 - Additional architecture ports
@@ -365,5 +400,5 @@ initialization. Run the configured test environment with:
 pio test -e nucleo_f446re_test
 ```
 
-Queue, semaphore, scheduler, and long-duration hardware coverage are planned as
-part of the stabilization work.
+Queue, semaphore, mutex, scheduler, and long-duration hardware coverage are
+planned as part of the stabilization work.

@@ -58,9 +58,9 @@
 - [ ] Demonstrate high-, medium-, and low-priority task behavior `[S]`
 
 ## Week 10: Optional Mutex
-- [ ] Implement mutex create, take, and give with ownership enforcement `[S]`
-- [ ] Implement priority inheritance for tasks blocked on a mutex `[S]`
-- [ ] Ensure mutex operations are preemption-safe and task-only `[S]`
+- [x] Implement mutex init, lock, and unlock with ownership enforcement `[S]`
+- [x] Implement simplified priority inheritance for tasks blocked on a mutex `[S]`
+- [x] Ensure mutex operations are preemption-safe and task-only `[S]`
 - [ ] Demonstrate a mutex guarding a shared resource between tasks `[S]`
 
 ## Week 11: Debugging and Stability

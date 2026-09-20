@@ -368,8 +368,17 @@ bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
 //           Mutex
 // =========================
 
+/**
+ * @brief Opaque nonrecursive mutex type with priority inheritance.
+ * @note Waiting tasks are ordered by effective priority, with FIFO ordering
+ *       among tasks at the same priority.
+ */
 typedef struct rtos_mutex rtos_mutex_t;
 
+/**
+ * @brief Caller-owned storage for a mutex control block.
+ * @warning Initialized storage must not be copied or moved.
+ */
 typedef struct {
   /** @cond INTERNAL */
   void *_a;
@@ -377,8 +386,47 @@ typedef struct {
   /** @endcond */
 } rtos_mutex_storage_t;
 
+/**
+ * @brief Initialize a mutex in caller-owned storage.
+ * @param storage Persistent storage for the mutex control block.
+ * @return A mutex handle on success, or NULL if @p storage is NULL.
+ * @warning The storage must remain valid and must not be moved after
+ *          initialization.
+ */
 rtos_mutex_t *rtos_mutex_init(rtos_mutex_storage_t *storage);
+
+/**
+ * @brief Lock a mutex, optionally blocking until ownership is available.
+ * @param mutex Mutex to lock.
+ * @param timeout Maximum ticks to wait. Zero performs a nonblocking try-lock,
+ *        and RTOS_DELAY_INFINITY waits indefinitely.
+ * @return True if the calling task acquired ownership, otherwise false for a
+ *         null handle, recursive acquisition, held-mutex limit, or timeout.
+ * @note Ownership is handed directly to the highest-effective-priority waiter.
+ *       Equal-priority waiters are served FIFO.
+ * @note The owner inherits the highest waiting task's effective priority.
+ *       Inheritance is simplified and is not propagated transitively through
+ *       an existing chain of mutex waits.
+ * @note After a timeout, inherited priority is recalculated only when the owner
+ *       holds exactly one mutex. Otherwise it is retained conservatively.
+ * @warning Task-context-only. Do not call from interrupt context or while
+ *          already in a critical section.
+ * @warning The mutex is nonrecursive. Its owner cannot lock it again.
+ */
 bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t timeout);
+
+/**
+ * @brief Release a mutex owned by the calling task.
+ * @param mutex Mutex to unlock.
+ * @return True if ownership was released, otherwise false if @p mutex is NULL
+ *         or the calling task is not its owner.
+ * @note If waiters exist, ownership is transferred directly to the
+ *       highest-effective-priority waiter, with FIFO ordering among equals.
+ * @note A task that still owns other mutexes conservatively retains inherited
+ *       priority. Releasing its final mutex restores its base priority.
+ * @warning Task-context-only. Do not call from interrupt context or while
+ *          already in a critical section.
+ */
 bool rtos_mutex_unlock(rtos_mutex_t *mutex);
 
 #endif // !ARTOS_H
