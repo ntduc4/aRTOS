@@ -2,6 +2,7 @@
 
 #include "list.h"
 #include "rtos/ports/rtos_port.h"
+#include "rtos/tasks.h"
 #include <string.h>
 
 // =======================
@@ -60,11 +61,14 @@ bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
     if (++q->write_index == q->capacity)
       q->write_index = 0;
     bool need_unblock = q->read_list.count != 0;
+    // greater than or equal
+    bool gte_prio = need_unblock && (q->read_list.sentinel.next->value >=
+                                     rtos_current_effective_priority());
     if (need_unblock)
       rtos_unblock_task(q->read_list.sentinel.next, WAIT_SIGNALED);
     rtos_port_exit_critical(prev_state);
 
-    if (need_unblock)
+    if (gte_prio)
       rtos_port_request_context_switch();
     return true;
   }
@@ -105,11 +109,13 @@ bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
     q->write_index = 0;
 
   bool need_unblock = q->read_list.count != 0;
+  bool gte_prio = need_unblock && (q->read_list.sentinel.next->value >=
+                                   rtos_current_effective_priority());
   if (need_unblock)
     rtos_unblock_task(q->read_list.sentinel.next, WAIT_SIGNALED);
   rtos_port_exit_critical(prev_state);
 
-  if (need_unblock)
+  if (gte_prio)
     rtos_port_request_context_switch();
   return true;
 }
@@ -131,11 +137,13 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
     if (++q->read_index == q->capacity)
       q->read_index = 0;
     bool need_unblock = q->write_list.count != 0;
+    bool gte_prio = need_unblock && (q->write_list.sentinel.next->value >=
+                                     rtos_current_effective_priority());
     if (need_unblock)
       rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
     rtos_port_exit_critical(prev_state);
 
-    if (need_unblock)
+    if (gte_prio)
       rtos_port_request_context_switch();
     return true;
   }
@@ -175,17 +183,19 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
   if (++q->read_index == q->capacity)
     q->read_index = 0;
   bool need_unblock = q->write_list.count != 0;
+  bool gte_prio = need_unblock && (q->write_list.sentinel.next->value >=
+                                   rtos_current_effective_priority());
   if (need_unblock)
     rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
   rtos_port_exit_critical(prev_state);
 
-  if (need_unblock)
+  if (gte_prio)
     rtos_port_request_context_switch();
   return true;
 }
 
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
-                                 bool *task_woken) {
+                                 bool *gte_task_woken) {
   if (q == NULL || data == NULL)
     return false;
 
@@ -201,17 +211,19 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
   if (++q->write_index == q->capacity)
     q->write_index = 0;
   bool need_unblock = q->read_list.count != 0;
+  bool gte_prio = need_unblock && (q->read_list.sentinel.next->value >=
+                                   rtos_current_effective_priority());
   if (need_unblock) {
     rtos_unblock_task(q->read_list.sentinel.next, WAIT_SIGNALED);
-    if (task_woken != NULL)
-      *task_woken = true;
+    if (gte_task_woken != NULL && gte_prio)
+      *gte_task_woken = true;
   }
   rtos_port_exit_critical(prev_state);
   return true;
 }
 
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
-                                 bool *task_woken) {
+                                 bool *gte_task_woken) {
   if (q == NULL || dst == NULL)
     return false;
 
@@ -227,10 +239,12 @@ bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
   if (++q->read_index == q->capacity)
     q->read_index = 0;
   bool need_unblock = q->write_list.count != 0;
+  bool gte_prio = need_unblock && (q->write_list.sentinel.next->value >=
+                                   rtos_current_effective_priority());
   if (need_unblock) {
     rtos_unblock_task(q->write_list.sentinel.next, WAIT_SIGNALED);
-    if (task_woken != NULL)
-      *task_woken = true;
+    if (gte_task_woken != NULL && gte_prio)
+      *gte_task_woken = true;
   }
   rtos_port_exit_critical(prev_state);
   return true;

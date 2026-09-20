@@ -21,6 +21,10 @@ typedef struct {
   rtos_task_fn_t entry;
   void *argument;
 
+  uint8_t priority;
+  uint8_t effective_priority;
+  uint8_t mutexes_held;
+
   rtos_list_item_t state_item;
   rtos_list_item_t event_item;
   rtos_wait_reason_t wait_reason;
@@ -38,6 +42,7 @@ void rtos_unblock_task(rtos_list_item_t *task_item, rtos_wait_reason_t reason);
 
 rtos_wait_reason_t rtos_current_wait_reason(void);
 void rtos_clear_current_wait_reason(void);
+uint8_t rtos_current_effective_priority(void);
 
 // For debug purposes ONLY
 const rtos_tcb_t *rtos_scheduler_current_task(void);

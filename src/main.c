@@ -11,6 +11,7 @@
 #define BUTTON_DEBOUNCE_MS 50U
 #define CONSUMER_COUNT 3U
 #define CONSUMER_TIMEOUT_MS 1200U
+#define DEFAULT_PRIORITY 1U
 
 static rtos_stack_word_t led_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
@@ -286,31 +287,31 @@ int main() {
       "Button events are also copied to the immediate BUTTON-ONLY queue.\n");
   USART2_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
 
-  rtos_status_t status1 =
-      rtos_task_create(led_task, NULL, led_stack, TASK_STACK_WORDS);
+  rtos_status_t status1 = rtos_task_create(led_task, NULL, led_stack,
+                                           TASK_STACK_WORDS, DEFAULT_PRIORITY);
   if (status1 != RTOS_OK)
     for (;;) {
     }
 
-  if (rtos_task_create(heartbeat_task, NULL, heartbeat_stack,
-                       TASK_STACK_WORDS) != RTOS_OK)
+  if (rtos_task_create(heartbeat_task, NULL, heartbeat_stack, TASK_STACK_WORDS,
+                       DEFAULT_PRIORITY) != RTOS_OK)
     for (;;) {
     }
 
   for (uint32_t i = 0; i < CONSUMER_COUNT; i++) {
     if (rtos_task_create(logger_task, &consumer_arguments[i], logger_stacks[i],
-                         TASK_STACK_WORDS) != RTOS_OK)
+                         TASK_STACK_WORDS, DEFAULT_PRIORITY) != RTOS_OK)
       for (;;) {
       }
   }
 
   if (rtos_task_create(button_logger_task, NULL, button_logger_stack,
-                       TASK_STACK_WORDS) != RTOS_OK)
+                       TASK_STACK_WORDS, DEFAULT_PRIORITY) != RTOS_OK)
     for (;;) {
     }
 
-  if (rtos_task_create(load_task, NULL, load_stack, TASK_STACK_WORDS) !=
-      RTOS_OK)
+  if (rtos_task_create(load_task, NULL, load_stack, TASK_STACK_WORDS,
+                       DEFAULT_PRIORITY) != RTOS_OK)
     for (;;) {
     }
 

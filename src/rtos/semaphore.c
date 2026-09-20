@@ -95,9 +95,12 @@ bool rtos_semaphore_signal(rtos_semaphore_t *sem) {
     return true;
   }
 
+  bool gte_prio =
+      sem->wait_list.sentinel.next->value >= rtos_current_effective_priority();
   rtos_unblock_task(sem->wait_list.sentinel.next, WAIT_SIGNALED);
   rtos_port_exit_critical(prev_state);
-  rtos_port_request_context_switch();
+  if (gte_prio)
+    rtos_port_request_context_switch();
   return true;
 }
 
@@ -114,7 +117,7 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *sem) {
   return false;
 }
 
-bool rtos_semaphore_signal_isr(rtos_semaphore_t *sem, bool *task_woken) {
+bool rtos_semaphore_signal_isr(rtos_semaphore_t *sem, bool *gte_task_woken) {
   if (sem == NULL)
     return false;
 
@@ -133,8 +136,10 @@ bool rtos_semaphore_signal_isr(rtos_semaphore_t *sem, bool *task_woken) {
     return true;
   }
 
-  if (task_woken != NULL)
-    *task_woken = true;
+  bool gte_prio =
+      sem->wait_list.sentinel.next->value >= rtos_current_effective_priority();
+  if (gte_task_woken != NULL && gte_prio)
+    *gte_task_woken = true;
   rtos_unblock_task(sem->wait_list.sentinel.next, WAIT_SIGNALED);
   rtos_port_exit_critical(prev_state);
   return true;

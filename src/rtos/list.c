@@ -98,10 +98,10 @@ void rtos_list_insert_reversed_sorted(rtos_list_t *list,
       list->sentinel.prev == NULL || item->container != NULL)
     return;
 
-  rtos_list_item_t *current = list->sentinel.next;
-  while (current != &list->sentinel && current->value >= item->value) {
-    current = current->next;
+  rtos_list_item_t *current = list->sentinel.prev;
+  while (current != &list->sentinel && item->value > current->value) {
+    current = current->prev;
   }
 
-  rtos_list_prepend(current, item);
+  rtos_list_append(current, item);
 }

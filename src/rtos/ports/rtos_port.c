@@ -24,6 +24,12 @@ static void rtos_port_task_return_trap(void) {
     __WFI();
 }
 
+uint8_t rtos_port_find_msb32(uint32_t bitmap) {
+  if (bitmap == 0)
+    return 0;
+  return 31U - __CLZ(bitmap);
+}
+
 rtos_port_irq_state_t rtos_port_enter_critical(void) {
   rtos_port_irq_state_t previous_state = __get_PRIMASK();
 

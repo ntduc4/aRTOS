@@ -68,7 +68,7 @@ typedef uintptr_t rtos_stack_word_t;
  */
 rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
                                rtos_stack_word_t *stack,
-                               uint32_t stack_word_count);
+                               uint32_t stack_word_count, uint8_t priority);
 
 /**
  * @brief Start scheduling the created tasks.
@@ -203,7 +203,8 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
  * @note If @p task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
-bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore, bool *task_woken);
+bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
+                               bool *gte_task_woken);
 
 /**
  * @brief Signal a semaphore from task context.
@@ -295,7 +296,7 @@ bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
-                                 bool *task_woken);
+                                 bool *gte_task_woken);
 
 /**
  * @brief Copy one item out of a queue from interrupt context.
@@ -311,6 +312,6 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
  *       completing the required peripheral cleanup.
  */
 bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
-                                 bool *task_woken);
+                                 bool *gte_task_woken);
 
 #endif // !ARTOS_H

@@ -3,8 +3,7 @@
 
 #define RTOS_MAX_TASKS 16U
 #define RTOS_TICK_HZ 1000U
-#define RTOS_PRIORITY_COUNT 4U
-#define RTOS_USE_OPTIMIZED_TASK_SELECTION 0U
+#define RTOS_PRIORITY_COUNT 2U
 
 // Recommend to increase this to 128U if floating point is used
 // MUST BE MULTIPLE OF 8
