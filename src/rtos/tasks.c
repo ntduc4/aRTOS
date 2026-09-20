@@ -1,6 +1,5 @@
 #include <stdint.h>
 
-#include "cmsis_gcc.h"
 #include "rtos.h"
 #include "rtos/list.h"
 #include "rtos/ports/rtos_port.h"
@@ -26,11 +25,6 @@ static rtos_list_t *_cur_delayed;
 static rtos_list_t *_next_delayed;
 
 static _Alignas(8) rtos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
-
-static void idle_task_entry(void *argument) {
-  for (;;)
-    __WFI();
-}
 
 static rtos_tcb_t idle_task;
 
@@ -156,7 +150,7 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
 void rtos_system_init(void) {
   // Setup idle task
 
-  rtos_init_tcb(&idle_task, idle_task_entry, NULL, idle_task_stack,
+  rtos_init_tcb(&idle_task, rtos_port_idle_task, NULL, idle_task_stack,
                 RTOS_MIN_STACK_WORDS, 0);
 
   for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++)

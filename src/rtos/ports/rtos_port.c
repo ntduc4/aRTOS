@@ -2,6 +2,7 @@
 
 #include "cmsis_gcc.h"
 #include "rtos.h"
+#include "rtos/tasks.h"
 #include "rtos_config.h"
 #include "rtos_port.h"
 #include "stm32f446xx.h"
@@ -20,6 +21,11 @@ static void rtos_port_task_return_trap(void) __attribute__((noreturn));
 // Literally just a trap that do nothing
 static void rtos_port_task_return_trap(void) {
   __disable_irq();
+  for (;;)
+    __WFI();
+}
+
+void rtos_port_idle_task(void *argument) {
   for (;;)
     __WFI();
 }
@@ -156,6 +162,13 @@ void rtos_port_request_context_switch_from_isr(void) {
 }
 
 void SysTick_Handler(void) { rtos_tick_handler(); }
+
+struct rtos_fault_info {
+  uint32_t r0, r1, r2, r3, r12, lr, pc, xpsr;
+  uint32_t exc_return; // LR at fault entry
+  uint32_t cfsr, hfsr, mmfar, bfar;
+  const rtos_tcb_t *task;
+};
 
 volatile rtos_fault_info_t rtos_fault_info;
 
