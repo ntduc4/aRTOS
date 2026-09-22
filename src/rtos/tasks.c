@@ -27,7 +27,7 @@ static rtos_list_t _suspend_l;
 static rtos_list_t *_cur_delayed;
 static rtos_list_t *_next_delayed;
 
-static _Alignas(8) rtos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
+static _Alignas(8) artos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
 
 static rtos_tcb_t idle_task;
 
@@ -84,7 +84,7 @@ static rtos_tcb_t *rtos_get_highest_prio_task() {
 }
 
 static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
-                                 void *argument, rtos_stack_word_t *stack,
+                                 void *argument, artos_stack_word_t *stack,
                                  uint32_t stack_word_count, uint8_t priority) {
   for (uint32_t i = ARTOS_STACK_GUARD_WORDS; i < stack_word_count; i++)
     stack[i] = ARTOS_STACK_FILL_PATTERN;
@@ -108,18 +108,18 @@ static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
   tcb->wait_reason = WAIT_NO_REASON;
 }
 
-rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
-                               rtos_stack_word_t *stack,
-                               uint32_t stack_word_count, uint8_t priority) {
+rtos_status_t artos_task_create(rtos_task_fn_t entry, void *argument,
+                                artos_stack_word_t *stack,
+                                uint32_t stack_word_count, uint8_t priority) {
   if (stack == NULL || entry == NULL || priority >= RTOS_PRIORITY_COUNT)
-    return RTOS_ERROR_INVALID_ARGUMENT;
-  rtos_stack_word_t *stack_top = stack + stack_word_count;
+    return ARTOS_ERROR_INVALID_ARGUMENT;
+  artos_stack_word_t *stack_top = stack + stack_word_count;
   if (((uintptr_t)(stack_top) & 0b111U) != 0U)
-    return RTOS_ERROR_INVALID_ARGUMENT;
+    return ARTOS_ERROR_INVALID_ARGUMENT;
   if (stack_word_count < RTOS_MIN_STACK_WORDS)
-    return RTOS_ERROR_STACK_TOO_SMALL;
+    return ARTOS_ERROR_STACK_TOO_SMALL;
   if (_tsk_cnt == RTOS_MAX_TASKS)
-    return RTOS_ERROR_TASK_LIMIT;
+    return ARTOS_ERROR_TASK_LIMIT;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
@@ -133,11 +133,11 @@ rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
       rtos_port_exit_critical(prev_state);
       if (should_yield)
         rtos_port_request_context_switch();
-      return RTOS_OK;
+      return ARTOS_OK;
     }
   }
   rtos_port_exit_critical(prev_state);
-  return RTOS_ERROR_TASK_LIMIT;
+  return ARTOS_ERROR_TASK_LIMIT;
 }
 
 void rtos_system_init(void) {
@@ -167,9 +167,9 @@ void rtos_system_init(void) {
 }
 
 static bool artos_task_stack_valid(const rtos_tcb_t *task,
-                                   const rtos_stack_word_t *saved_sp) {
-  const rtos_stack_word_t *low = task->stack_buffer + ARTOS_STACK_GUARD_WORDS;
-  const rtos_stack_word_t *high = task->stack_buffer + task->stack_word_count;
+                                   const artos_stack_word_t *saved_sp) {
+  const artos_stack_word_t *low = task->stack_buffer + ARTOS_STACK_GUARD_WORDS;
+  const artos_stack_word_t *high = task->stack_buffer + task->stack_word_count;
 
   if (saved_sp < low || saved_sp > high)
     return false;
@@ -184,7 +184,7 @@ static bool artos_task_stack_valid(const rtos_tcb_t *task,
 // Make sure to only call when context switch
 // Make sure to already in critical state
 static rtos_tcb_t *
-rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
+rtos_scheduler_select_next(artos_stack_word_t *current_stack_pointer) {
   // NULL ONLY VALID WHEN IT'S THE FIRST CALL (NO RUNNING TASK)
   if (current_stack_pointer == NULL && _cur_task != NULL)
     return NULL;
@@ -220,8 +220,8 @@ rtos_tcb_t *rtos_scheduler_start(void) {
   return rtos_scheduler_select_next(NULL);
 };
 
-rtos_stack_word_t *
-rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
+artos_stack_word_t *
+rtos_scheduler_switch_context(artos_stack_word_t *current_stack_pointer) {
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   rtos_tcb_t *next = rtos_scheduler_select_next(current_stack_pointer);
   rtos_port_exit_critical(prev_state);

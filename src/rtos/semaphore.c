@@ -10,22 +10,24 @@
 //          Semaphore
 // ===========================
 
-struct rtos_semaphore {
+struct artos_semaphore {
   uint32_t count, max;
   rtos_list_t wait_list;
 };
 
-_Static_assert(sizeof(rtos_semaphore_t) == sizeof(rtos_semaphore_storage_t),
+_Static_assert(sizeof(artos_semaphore_t) == sizeof(artos_semaphore_storage_t),
                "Semaphore storage size mismatch");
 
-_Static_assert(_Alignof(rtos_semaphore_t) == _Alignof(rtos_semaphore_storage_t),
+_Static_assert(_Alignof(artos_semaphore_t) ==
+                   _Alignof(artos_semaphore_storage_t),
                "Semaphore storage alignment mismatch");
 
-rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
-                                             bool initially_available) {
+artos_semaphore_t *
+artos_binary_semaphore_init(artos_semaphore_storage_t *storage,
+                            bool initially_available) {
   if (storage == NULL)
     return NULL;
-  rtos_semaphore_t *sem = (void *)storage;
+  artos_semaphore_t *sem = (void *)storage;
 
   sem->count = initially_available ? 1 : 0;
   sem->max = 1;
@@ -34,12 +36,12 @@ rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
   return sem;
 }
 
-rtos_semaphore_t *
-rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
+artos_semaphore_t *
+rtos_counting_semaphore_init(artos_semaphore_storage_t *storage,
                              uint32_t max_count, uint32_t initial_count) {
   if (storage == NULL || max_count == 0 || initial_count > max_count)
     return NULL;
-  rtos_semaphore_t *sem = (void *)storage;
+  artos_semaphore_t *sem = (void *)storage;
 
   sem->count = initial_count;
   sem->max = max_count;
@@ -48,7 +50,7 @@ rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
   return sem;
 }
 
-bool rtos_semaphore_take(rtos_semaphore_t *sem, uint32_t tick_timeout) {
+bool artos_semaphore_take(artos_semaphore_t *sem, uint32_t tick_timeout) {
   if (sem == NULL)
     return false;
 
@@ -76,7 +78,7 @@ bool rtos_semaphore_take(rtos_semaphore_t *sem, uint32_t tick_timeout) {
   return res;
 }
 
-bool rtos_semaphore_signal(rtos_semaphore_t *sem) {
+bool artos_semaphore_signal(artos_semaphore_t *sem) {
   if (sem == NULL)
     return false;
 
@@ -104,7 +106,7 @@ bool rtos_semaphore_signal(rtos_semaphore_t *sem) {
   return true;
 }
 
-bool rtos_semaphore_take_isr(rtos_semaphore_t *sem) {
+bool artos_semaphore_take_isr(artos_semaphore_t *sem) {
   if (sem == NULL)
     return false;
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
@@ -117,7 +119,7 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *sem) {
   return false;
 }
 
-bool rtos_semaphore_signal_isr(rtos_semaphore_t *sem, bool *gt_task_woken) {
+bool artos_semaphore_signal_isr(artos_semaphore_t *sem, bool *gt_task_woken) {
   if (sem == NULL)
     return false;
 

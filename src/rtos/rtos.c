@@ -5,10 +5,10 @@
 
 void rtos_init(void) { rtos_system_init(); }
 
-rtos_status_t rtos_start(void) {
+rtos_status_t artos_start(void) {
   rtos_tcb_t *first_task = rtos_scheduler_start();
   if (first_task == NULL)
-    return RTOS_ERROR_NO_TASKS;
+    return ARTOS_ERROR_NO_TASKS;
 
   rtos_port_start_first_task(first_task->stack_pointer);
 
@@ -17,10 +17,10 @@ rtos_status_t rtos_start(void) {
   }
 }
 
-void rtos_yield(void) { rtos_port_request_context_switch(); }
-void rtos_yield_from_isr(void) { rtos_port_request_context_switch_from_isr(); }
+void artos_yield(void) { rtos_port_request_context_switch(); }
+void artos_yield_from_isr(void) { rtos_port_request_context_switch_from_isr(); }
 
-void rtos_wait(uint32_t tick_count) {
+void artos_wait(uint32_t tick_count) {
   if (tick_count > 0) {
     rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
     rtos_block_current_task(tick_count == RTOS_DELAY_INFINITY
@@ -33,9 +33,9 @@ void rtos_wait(uint32_t tick_count) {
   rtos_port_request_context_switch();
 }
 
-uint32_t rtos_get_tick(void) { return rtos_current_tick(); }
+uint32_t artos_get_tick(void) { return rtos_current_tick(); }
 
-void rtos_wait_until(uint32_t wake_tick) {
+void artos_wait_until(uint32_t wake_tick) {
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   uint32_t delta = (wake_tick - rtos_current_tick());
   if (delta != 0 && delta < 0x80000000)

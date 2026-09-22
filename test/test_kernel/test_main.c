@@ -10,11 +10,12 @@ enum {
   TEST_STACK_WORDS = 128U,
 };
 
-static rtos_stack_word_t test_stack[TEST_STACK_WORDS]
+static artos_stack_word_t test_stack[TEST_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t misaligned_stack[TEST_STACK_WORDS + 1U]
+static artos_stack_word_t misaligned_stack[TEST_STACK_WORDS + 1U]
     __attribute__((aligned(8)));
-static rtos_stack_word_t task_limit_stacks[RTOS_MAX_TASKS][RTOS_MIN_STACK_WORDS]
+static artos_stack_word_t task_limit_stacks[RTOS_MAX_TASKS]
+                                           [RTOS_MIN_STACK_WORDS]
     __attribute__((aligned(8)));
 
 static void test_task(void *argument) {
@@ -113,130 +114,130 @@ static void test_list_reversed_sorted_insertion_is_stable(void) {
 }
 
 static void test_queue_rejects_invalid_initialization(void) {
-  rtos_queue_control_storage_t control;
+  artos_queue_control_storage_t control;
   uint8_t storage[4];
 
-  TEST_ASSERT_NULL(rtos_queue_init(NULL, storage, 1U, 1U));
-  TEST_ASSERT_NULL(rtos_queue_init(&control, NULL, 1U, 1U));
-  TEST_ASSERT_NULL(rtos_queue_init(&control, storage, 0U, 1U));
-  TEST_ASSERT_NULL(rtos_queue_init(&control, storage, 1U, 0U));
-  TEST_ASSERT_NULL(rtos_queue_init(&control, storage, SIZE_MAX, 2U));
+  TEST_ASSERT_NULL(artos_queue_init(NULL, storage, 1U, 1U));
+  TEST_ASSERT_NULL(artos_queue_init(&control, NULL, 1U, 1U));
+  TEST_ASSERT_NULL(artos_queue_init(&control, storage, 0U, 1U));
+  TEST_ASSERT_NULL(artos_queue_init(&control, storage, 1U, 0U));
+  TEST_ASSERT_NULL(artos_queue_init(&control, storage, SIZE_MAX, 2U));
 }
 
 static void test_queue_is_fifo_and_wraps(void) {
-  rtos_queue_control_storage_t control;
+  artos_queue_control_storage_t control;
   uint32_t storage[QUEUE_CAPACITY];
-  rtos_queue_t *queue = rtos_queue_init(&control, (uint8_t *)storage,
-                                        sizeof(storage[0]), QUEUE_CAPACITY);
+  artos_queue_t *queue = artos_queue_init(&control, (uint8_t *)storage,
+                                          sizeof(storage[0]), QUEUE_CAPACITY);
   uint32_t values[] = {11U, 22U, 33U, 44U};
   uint32_t output = 0U;
 
   TEST_ASSERT_NOT_NULL(queue);
-  TEST_ASSERT_TRUE(rtos_queue_enqueue(queue, (uint8_t *)&values[0], 0U));
-  TEST_ASSERT_TRUE(rtos_queue_enqueue(queue, (uint8_t *)&values[1], 0U));
-  TEST_ASSERT_TRUE(rtos_queue_enqueue(queue, (uint8_t *)&values[2], 0U));
-  TEST_ASSERT_FALSE(rtos_queue_enqueue(queue, (uint8_t *)&values[3], 0U));
+  TEST_ASSERT_TRUE(artos_queue_enqueue(queue, (uint8_t *)&values[0], 0U));
+  TEST_ASSERT_TRUE(artos_queue_enqueue(queue, (uint8_t *)&values[1], 0U));
+  TEST_ASSERT_TRUE(artos_queue_enqueue(queue, (uint8_t *)&values[2], 0U));
+  TEST_ASSERT_FALSE(artos_queue_enqueue(queue, (uint8_t *)&values[3], 0U));
 
-  TEST_ASSERT_TRUE(rtos_queue_dequeue(queue, (uint8_t *)&output, 0U));
+  TEST_ASSERT_TRUE(artos_queue_dequeue(queue, (uint8_t *)&output, 0U));
   TEST_ASSERT_EQUAL_UINT32(values[0], output);
-  TEST_ASSERT_TRUE(rtos_queue_enqueue(queue, (uint8_t *)&values[3], 0U));
+  TEST_ASSERT_TRUE(artos_queue_enqueue(queue, (uint8_t *)&values[3], 0U));
 
   for (uint32_t i = 1U; i < 4U; i++) {
-    TEST_ASSERT_TRUE(rtos_queue_dequeue(queue, (uint8_t *)&output, 0U));
+    TEST_ASSERT_TRUE(artos_queue_dequeue(queue, (uint8_t *)&output, 0U));
     TEST_ASSERT_EQUAL_UINT32(values[i], output);
   }
-  TEST_ASSERT_FALSE(rtos_queue_dequeue(queue, (uint8_t *)&output, 0U));
+  TEST_ASSERT_FALSE(artos_queue_dequeue(queue, (uint8_t *)&output, 0U));
 }
 
 static void test_queue_isr_operations_preserve_wake_flag_without_waiters(void) {
-  rtos_queue_control_storage_t control;
+  artos_queue_control_storage_t control;
   uint32_t storage[1];
-  rtos_queue_t *queue =
-      rtos_queue_init(&control, (uint8_t *)storage, sizeof(storage[0]), 1U);
+  artos_queue_t *queue =
+      artos_queue_init(&control, (uint8_t *)storage, sizeof(storage[0]), 1U);
   uint32_t input = 42U;
   uint32_t output = 0U;
   bool task_woken = false;
 
   TEST_ASSERT_TRUE(
-      rtos_queue_enqueue_from_isr(queue, (uint8_t *)&input, &task_woken));
+      artos_queue_enqueue_from_isr(queue, (uint8_t *)&input, &task_woken));
   TEST_ASSERT_FALSE(task_woken);
   TEST_ASSERT_FALSE(
-      rtos_queue_enqueue_from_isr(queue, (uint8_t *)&input, &task_woken));
+      artos_queue_enqueue_from_isr(queue, (uint8_t *)&input, &task_woken));
   TEST_ASSERT_TRUE(
-      rtos_queue_dequeue_from_isr(queue, (uint8_t *)&output, &task_woken));
+      artos_queue_dequeue_from_isr(queue, (uint8_t *)&output, &task_woken));
   TEST_ASSERT_EQUAL_UINT32(input, output);
   TEST_ASSERT_FALSE(task_woken);
   TEST_ASSERT_FALSE(
-      rtos_queue_dequeue_from_isr(queue, (uint8_t *)&output, &task_woken));
+      artos_queue_dequeue_from_isr(queue, (uint8_t *)&output, &task_woken));
 }
 
 static void test_binary_semaphore_enforces_one_token(void) {
-  rtos_semaphore_storage_t storage;
-  rtos_semaphore_t *semaphore = rtos_binary_semaphore_init(&storage, true);
+  artos_semaphore_storage_t storage;
+  artos_semaphore_t *semaphore = artos_binary_semaphore_init(&storage, true);
 
   TEST_ASSERT_NOT_NULL(semaphore);
-  TEST_ASSERT_TRUE(rtos_semaphore_take(semaphore, 0U));
-  TEST_ASSERT_FALSE(rtos_semaphore_take(semaphore, 0U));
-  TEST_ASSERT_TRUE(rtos_semaphore_signal(semaphore));
-  TEST_ASSERT_FALSE(rtos_semaphore_signal(semaphore));
+  TEST_ASSERT_TRUE(artos_semaphore_take(semaphore, 0U));
+  TEST_ASSERT_FALSE(artos_semaphore_take(semaphore, 0U));
+  TEST_ASSERT_TRUE(artos_semaphore_signal(semaphore));
+  TEST_ASSERT_FALSE(artos_semaphore_signal(semaphore));
 }
 
 static void test_counting_semaphore_enforces_maximum(void) {
-  rtos_semaphore_storage_t storage;
-  rtos_semaphore_t *semaphore = rtos_counting_semaphore_init(&storage, 3U, 2U);
+  artos_semaphore_storage_t storage;
+  artos_semaphore_t *semaphore = rtos_counting_semaphore_init(&storage, 3U, 2U);
 
   TEST_ASSERT_NOT_NULL(semaphore);
-  TEST_ASSERT_TRUE(rtos_semaphore_take_isr(semaphore));
-  TEST_ASSERT_TRUE(rtos_semaphore_take_isr(semaphore));
-  TEST_ASSERT_FALSE(rtos_semaphore_take_isr(semaphore));
-  TEST_ASSERT_TRUE(rtos_semaphore_signal_isr(semaphore, NULL));
-  TEST_ASSERT_TRUE(rtos_semaphore_signal_isr(semaphore, NULL));
-  TEST_ASSERT_TRUE(rtos_semaphore_signal_isr(semaphore, NULL));
-  TEST_ASSERT_FALSE(rtos_semaphore_signal_isr(semaphore, NULL));
+  TEST_ASSERT_TRUE(artos_semaphore_take_isr(semaphore));
+  TEST_ASSERT_TRUE(artos_semaphore_take_isr(semaphore));
+  TEST_ASSERT_FALSE(artos_semaphore_take_isr(semaphore));
+  TEST_ASSERT_TRUE(artos_semaphore_signal_isr(semaphore, NULL));
+  TEST_ASSERT_TRUE(artos_semaphore_signal_isr(semaphore, NULL));
+  TEST_ASSERT_TRUE(artos_semaphore_signal_isr(semaphore, NULL));
+  TEST_ASSERT_FALSE(artos_semaphore_signal_isr(semaphore, NULL));
 }
 
 static void test_semaphore_rejects_invalid_initialization(void) {
-  rtos_semaphore_storage_t storage;
+  artos_semaphore_storage_t storage;
 
-  TEST_ASSERT_NULL(rtos_binary_semaphore_init(NULL, false));
+  TEST_ASSERT_NULL(artos_binary_semaphore_init(NULL, false));
   TEST_ASSERT_NULL(rtos_counting_semaphore_init(NULL, 1U, 0U));
   TEST_ASSERT_NULL(rtos_counting_semaphore_init(&storage, 0U, 0U));
   TEST_ASSERT_NULL(rtos_counting_semaphore_init(&storage, 1U, 2U));
 }
 
 static void test_mutex_requires_task_context(void) {
-  rtos_mutex_storage_t storage;
-  rtos_mutex_t *mutex = rtos_mutex_init(&storage);
+  artos_mutex_storage_t storage;
+  artos_mutex_t *mutex = artos_mutex_init(&storage);
 
-  TEST_ASSERT_NULL(rtos_mutex_init(NULL));
+  TEST_ASSERT_NULL(artos_mutex_init(NULL));
   TEST_ASSERT_NOT_NULL(mutex);
-  TEST_ASSERT_FALSE(rtos_mutex_lock(mutex, 0U));
-  TEST_ASSERT_FALSE(rtos_mutex_unlock(mutex));
+  TEST_ASSERT_FALSE(artos_mutex_lock(mutex, 0U));
+  TEST_ASSERT_FALSE(artos_mutex_unlock(mutex));
 }
 
 static void test_task_creation_validates_arguments(void) {
   TEST_ASSERT_EQUAL(
-      RTOS_ERROR_INVALID_ARGUMENT,
-      rtos_task_create(NULL, NULL, test_stack, TEST_STACK_WORDS, 0U));
+      ARTOS_ERROR_INVALID_ARGUMENT,
+      artos_task_create(NULL, NULL, test_stack, TEST_STACK_WORDS, 0U));
   TEST_ASSERT_EQUAL(
-      RTOS_ERROR_INVALID_ARGUMENT,
-      rtos_task_create(test_task, NULL, NULL, TEST_STACK_WORDS, 0U));
-  TEST_ASSERT_EQUAL(RTOS_ERROR_INVALID_ARGUMENT,
-                    rtos_task_create(test_task, NULL, test_stack,
-                                     TEST_STACK_WORDS, RTOS_PRIORITY_COUNT));
-  TEST_ASSERT_EQUAL(RTOS_ERROR_INVALID_ARGUMENT,
-                    rtos_task_create(test_task, NULL, misaligned_stack + 1U,
-                                     TEST_STACK_WORDS, 0U));
-  TEST_ASSERT_EQUAL(RTOS_ERROR_STACK_TOO_SMALL,
-                    rtos_task_create(test_task, NULL, test_stack,
-                                     RTOS_MIN_STACK_WORDS - 2U, 0U));
+      ARTOS_ERROR_INVALID_ARGUMENT,
+      artos_task_create(test_task, NULL, NULL, TEST_STACK_WORDS, 0U));
+  TEST_ASSERT_EQUAL(ARTOS_ERROR_INVALID_ARGUMENT,
+                    artos_task_create(test_task, NULL, test_stack,
+                                      TEST_STACK_WORDS, RTOS_PRIORITY_COUNT));
+  TEST_ASSERT_EQUAL(ARTOS_ERROR_INVALID_ARGUMENT,
+                    artos_task_create(test_task, NULL, misaligned_stack + 1U,
+                                      TEST_STACK_WORDS, 0U));
+  TEST_ASSERT_EQUAL(ARTOS_ERROR_STACK_TOO_SMALL,
+                    artos_task_create(test_task, NULL, test_stack,
+                                      RTOS_MIN_STACK_WORDS - 2U, 0U));
 }
 
 static void test_task_creation_and_inspection(void) {
   artos_task_info_t info;
 
-  TEST_ASSERT_EQUAL(RTOS_OK, rtos_task_create(test_task, NULL, test_stack,
-                                              TEST_STACK_WORDS, 1U));
+  TEST_ASSERT_EQUAL(ARTOS_OK, artos_task_create(test_task, NULL, test_stack,
+                                                TEST_STACK_WORDS, 1U));
   TEST_ASSERT_EQUAL_UINT32(1U, artos_task_count());
   TEST_ASSERT_TRUE(artos_task_get_info(0U, &info));
   TEST_ASSERT_EQUAL_PTR(test_task, info.entry);
@@ -250,18 +251,18 @@ static void test_task_creation_and_inspection(void) {
 
 static void test_task_pool_limit(void) {
   for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++) {
-    TEST_ASSERT_EQUAL(RTOS_OK,
-                      rtos_task_create(test_task, NULL, task_limit_stacks[i],
-                                       RTOS_MIN_STACK_WORDS, 0U));
+    TEST_ASSERT_EQUAL(ARTOS_OK,
+                      artos_task_create(test_task, NULL, task_limit_stacks[i],
+                                        RTOS_MIN_STACK_WORDS, 0U));
   }
 
   TEST_ASSERT_EQUAL(
-      RTOS_ERROR_TASK_LIMIT,
-      rtos_task_create(test_task, NULL, test_stack, TEST_STACK_WORDS, 0U));
+      ARTOS_ERROR_TASK_LIMIT,
+      artos_task_create(test_task, NULL, test_stack, TEST_STACK_WORDS, 0U));
 }
 
 static void test_start_rejects_empty_task_set(void) {
-  TEST_ASSERT_EQUAL(RTOS_ERROR_NO_TASKS, rtos_start());
+  TEST_ASSERT_EQUAL(ARTOS_ERROR_NO_TASKS, artos_start());
 }
 
 int main(void) {

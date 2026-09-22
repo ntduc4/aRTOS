@@ -14,24 +14,24 @@ enum {
   LOW_OWNER_INDEX = 0U,
 };
 
-static rtos_stack_word_t task_stacks[TASK_COUNT][TASK_STACK_WORDS]
+static artos_stack_word_t task_stacks[TASK_COUNT][TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 
-static rtos_queue_control_storage_t queue_control;
+static artos_queue_control_storage_t queue_control;
 static uint32_t queue_storage[QUEUE_CAPACITY];
-static rtos_queue_t *queue;
+static artos_queue_t *queue;
 
-static rtos_queue_control_storage_t timeout_queue_control;
+static artos_queue_control_storage_t timeout_queue_control;
 static uint32_t timeout_queue_storage[QUEUE_CAPACITY];
-static rtos_queue_t *timeout_queue;
+static artos_queue_t *timeout_queue;
 
-static rtos_semaphore_storage_t semaphore_storage;
-static rtos_semaphore_t *semaphore;
-static rtos_semaphore_storage_t timeout_semaphore_storage;
-static rtos_semaphore_t *timeout_semaphore;
+static artos_semaphore_storage_t semaphore_storage;
+static artos_semaphore_t *semaphore;
+static artos_semaphore_storage_t timeout_semaphore_storage;
+static artos_semaphore_t *timeout_semaphore;
 
-static rtos_mutex_storage_t mutex_storage;
-static rtos_mutex_t *mutex;
+static artos_mutex_storage_t mutex_storage;
+static artos_mutex_t *mutex;
 
 static volatile bool priority_high_ran;
 static volatile bool priority_low_observed_preemption;
@@ -53,7 +53,7 @@ void tearDown(void) {}
 
 static void suspend_forever(void) {
   for (;;)
-    rtos_wait(RTOS_DELAY_INFINITY);
+    artos_wait(RTOS_DELAY_INFINITY);
 }
 
 static void priority_low_task(void *argument) {
@@ -66,7 +66,7 @@ static void priority_low_task(void *argument) {
 
 static void priority_high_task(void *argument) {
   (void)argument;
-  rtos_wait_until(10U);
+  artos_wait_until(10U);
   priority_high_ran = true;
   suspend_forever();
 }
@@ -74,8 +74,8 @@ static void priority_high_task(void *argument) {
 static void queue_consumer_task(void *argument) {
   (void)argument;
   uint32_t value = 0U;
-  rtos_wait_until(50U);
-  if (rtos_queue_dequeue(queue, (uint8_t *)&value, 20U)) {
+  artos_wait_until(50U);
+  if (artos_queue_dequeue(queue, (uint8_t *)&value, 20U)) {
     queue_received = value;
     queue_consumer_ran = true;
   }
@@ -85,47 +85,47 @@ static void queue_consumer_task(void *argument) {
 static void queue_producer_task(void *argument) {
   (void)argument;
   uint32_t value = 0x12345678U;
-  rtos_wait_until(60U);
-  if (rtos_queue_enqueue(queue, (uint8_t *)&value, 0U))
+  artos_wait_until(60U);
+  if (artos_queue_enqueue(queue, (uint8_t *)&value, 0U))
     queue_producer_observed_handoff = queue_consumer_ran;
   suspend_forever();
 }
 
 static void semaphore_consumer_task(void *argument) {
   (void)argument;
-  rtos_wait_until(90U);
-  if (rtos_semaphore_take(semaphore, 20U))
+  artos_wait_until(90U);
+  if (artos_semaphore_take(semaphore, 20U))
     semaphore_consumer_ran = true;
   suspend_forever();
 }
 
 static void semaphore_signaler_task(void *argument) {
   (void)argument;
-  rtos_wait_until(100U);
-  if (rtos_semaphore_signal(semaphore))
+  artos_wait_until(100U);
+  if (artos_semaphore_signal(semaphore))
     semaphore_signaler_observed_handoff = semaphore_consumer_ran;
   suspend_forever();
 }
 
 static void mutex_owner_task(void *argument) {
   (void)argument;
-  if (!rtos_mutex_lock(mutex, RTOS_DELAY_INFINITY))
+  if (!artos_mutex_lock(mutex, RTOS_DELAY_INFINITY))
     suspend_forever();
 
-  rtos_wait_until(150U);
+  artos_wait_until(150U);
   artos_task_info_t info;
   if (artos_task_get_info(LOW_OWNER_INDEX, &info))
     mutex_owner_inherited = info.base_priority == LOW_PRIORITY &&
                             info.effective_priority == HIGH_PRIORITY;
 
-  (void)rtos_mutex_unlock(mutex);
+  (void)artos_mutex_unlock(mutex);
   mutex_owner_resumed = true;
   suspend_forever();
 }
 
 static void mutex_interferer_task(void *argument) {
   (void)argument;
-  rtos_wait_until(120U);
+  artos_wait_until(120U);
   while (!mutex_waiter_acquired)
     work_sink++;
   suspend_forever();
@@ -133,10 +133,10 @@ static void mutex_interferer_task(void *argument) {
 
 static void mutex_waiter_task(void *argument) {
   (void)argument;
-  rtos_wait_until(120U);
-  if (rtos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+  artos_wait_until(120U);
+  if (artos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
     mutex_waiter_acquired = true;
-    (void)rtos_mutex_unlock(mutex);
+    (void)artos_mutex_unlock(mutex);
   }
   suspend_forever();
 }
@@ -144,15 +144,15 @@ static void mutex_waiter_task(void *argument) {
 static void timeout_task(void *argument) {
   (void)argument;
   uint32_t value;
-  rtos_wait_until(180U);
+  artos_wait_until(180U);
 
-  uint32_t start = rtos_get_tick();
-  bool received = rtos_queue_dequeue(timeout_queue, (uint8_t *)&value, 5U);
-  queue_timeout_passed = !received && rtos_get_tick() - start >= 5U;
+  uint32_t start = artos_get_tick();
+  bool received = artos_queue_dequeue(timeout_queue, (uint8_t *)&value, 5U);
+  queue_timeout_passed = !received && artos_get_tick() - start >= 5U;
 
-  start = rtos_get_tick();
-  bool taken = rtos_semaphore_take(timeout_semaphore, 5U);
-  semaphore_timeout_passed = !taken && rtos_get_tick() - start >= 5U;
+  start = artos_get_tick();
+  bool taken = artos_semaphore_take(timeout_semaphore, 5U);
+  semaphore_timeout_passed = !taken && artos_get_tick() - start >= 5U;
   suspend_forever();
 }
 
@@ -177,7 +177,7 @@ static void test_runtime_results(void) {
 
 static void reporter_task(void *argument) {
   (void)argument;
-  rtos_wait_until(250U);
+  artos_wait_until(250U);
   RUN_TEST(test_runtime_results);
   (void)UNITY_END();
   suspend_forever();
@@ -185,8 +185,8 @@ static void reporter_task(void *argument) {
 
 static void create_task_or_halt(uint32_t stack_index, rtos_task_fn_t entry,
                                 uint8_t priority) {
-  if (rtos_task_create(entry, NULL, task_stacks[stack_index], TASK_STACK_WORDS,
-                       priority) != RTOS_OK) {
+  if (artos_task_create(entry, NULL, task_stacks[stack_index], TASK_STACK_WORDS,
+                        priority) != ARTOS_OK) {
     for (;;) {
     }
   }
@@ -196,15 +196,15 @@ int main(void) {
   UNITY_BEGIN();
   rtos_init();
 
-  queue = rtos_queue_init(&queue_control, (uint8_t *)queue_storage,
-                          sizeof(queue_storage[0]), QUEUE_CAPACITY);
-  timeout_queue = rtos_queue_init(
-      &timeout_queue_control, (uint8_t *)timeout_queue_storage,
-      sizeof(timeout_queue_storage[0]), QUEUE_CAPACITY);
-  semaphore = rtos_binary_semaphore_init(&semaphore_storage, false);
+  queue = artos_queue_init(&queue_control, (uint8_t *)queue_storage,
+                           sizeof(queue_storage[0]), QUEUE_CAPACITY);
+  timeout_queue =
+      artos_queue_init(&timeout_queue_control, (uint8_t *)timeout_queue_storage,
+                       sizeof(timeout_queue_storage[0]), QUEUE_CAPACITY);
+  semaphore = artos_binary_semaphore_init(&semaphore_storage, false);
   timeout_semaphore =
-      rtos_binary_semaphore_init(&timeout_semaphore_storage, false);
-  mutex = rtos_mutex_init(&mutex_storage);
+      artos_binary_semaphore_init(&timeout_semaphore_storage, false);
+  mutex = artos_mutex_init(&mutex_storage);
 
   if (queue == NULL || timeout_queue == NULL || semaphore == NULL ||
       timeout_semaphore == NULL || mutex == NULL) {
@@ -227,7 +227,7 @@ int main(void) {
   create_task_or_halt(9U, timeout_task, HIGH_PRIORITY);
   create_task_or_halt(10U, reporter_task, HIGH_PRIORITY);
 
-  (void)rtos_start();
+  (void)artos_start();
   for (;;) {
   }
 }

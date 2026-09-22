@@ -47,15 +47,15 @@ void rtos_init(void);
 
 /** @brief Status codes returned by kernel lifecycle operations. */
 typedef enum {
-  RTOS_OK = 0,
-  RTOS_ERROR_INVALID_ARGUMENT,
-  RTOS_ERROR_TASK_LIMIT,
-  RTOS_ERROR_STACK_TOO_SMALL,
-  RTOS_ERROR_NO_TASKS
+  ARTOS_OK = 0,
+  ARTOS_ERROR_INVALID_ARGUMENT,
+  ARTOS_ERROR_TASK_LIMIT,
+  ARTOS_ERROR_STACK_TOO_SMALL,
+  ARTOS_ERROR_NO_TASKS
 } rtos_status_t;
 
 /** @brief Native stack word type used by the active architecture port. */
-typedef uintptr_t rtos_stack_word_t;
+typedef uintptr_t artos_stack_word_t;
 
 /**
  * @brief Create a task using caller-owned stack storage.
@@ -82,23 +82,23 @@ typedef uintptr_t rtos_stack_word_t;
  *       calling task. Equal- and lower-priority tasks become ready without an
  *       immediate context switch.
  */
-rtos_status_t rtos_task_create(rtos_task_fn_t entry, void *argument,
-                               rtos_stack_word_t *stack,
-                               uint32_t stack_word_count, uint8_t priority);
+rtos_status_t artos_task_create(rtos_task_fn_t entry, void *argument,
+                                artos_stack_word_t *stack,
+                                uint32_t stack_word_count, uint8_t priority);
 
 /**
  * @brief Start scheduling with the highest-priority created task.
  * @return RTOS_ERROR_NO_TASKS if no user task has been created.
  * @note A successful call does not return.
  */
-rtos_status_t rtos_start(void);
+rtos_status_t artos_start(void);
 
 /**
  * @brief Voluntarily yield the processor from task context.
  * @note The current task moves behind other ready tasks at its priority. A
  *       lower-priority task cannot run while a higher-priority task is ready.
  */
-void rtos_yield(void);
+void artos_yield(void);
 
 /**
  * @brief Request a context switch from interrupt context.
@@ -106,7 +106,7 @@ void rtos_yield(void);
  * @note The scheduler selects the highest-priority ready task. Among equal
  *       priorities, the task waiting longest is selected first.
  */
-void rtos_yield_from_isr(void);
+void artos_yield_from_isr(void);
 
 /**
  * @brief Block the current task for a relative number of ticks.
@@ -116,7 +116,7 @@ void rtos_yield_from_isr(void);
  *       task if it has equal or higher priority.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
-void rtos_wait(uint32_t tick_count);
+void artos_wait(uint32_t tick_count);
 
 /**
  * @brief Block the current task until an absolute kernel tick.
@@ -128,13 +128,13 @@ void rtos_wait(uint32_t tick_count);
  *       has equal or higher priority.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
-void rtos_wait_until(uint32_t wake_tick);
+void artos_wait_until(uint32_t wake_tick);
 
 /**
  * @brief Read the current kernel tick count.
  * @return Current 32-bit tick count, which wraps naturally.
  */
-uint32_t rtos_get_tick(void);
+uint32_t artos_get_tick(void);
 
 /**
  * @brief Read current task count.
@@ -150,13 +150,13 @@ uint32_t artos_task_count(void);
 typedef struct {
   uint32_t value;
   void *_p, *_n, *_o, *_c;
-} rtos_static_list_item_t;
+} artos_static_list_item_t;
 
 /** @brief Kernel-private static list storage. Do not access its fields. */
 typedef struct {
   uint32_t _c;
-  rtos_static_list_item_t _s;
-} rtos_static_list_t;
+  artos_static_list_item_t _s;
+} artos_static_list_t;
 
 // =============================
 //           Semaphore
@@ -167,7 +167,7 @@ typedef struct {
  * @note Waiting tasks are ordered by priority, with FIFO ordering among tasks
  *       at the same priority.
  */
-typedef struct rtos_semaphore rtos_semaphore_t;
+typedef struct artos_semaphore artos_semaphore_t;
 
 /**
  * @brief Caller-owned storage for a semaphore control block.
@@ -176,9 +176,9 @@ typedef struct rtos_semaphore rtos_semaphore_t;
 typedef struct {
   /** @cond INTERNAL */
   uint32_t _a, _b;
-  rtos_static_list_t _w;
+  artos_static_list_t _w;
   /** @endcond */
-} rtos_semaphore_storage_t;
+} artos_semaphore_storage_t;
 
 /**
  * @brief Initialize a binary semaphore in caller-owned storage.
@@ -189,8 +189,9 @@ typedef struct {
  * @warning The storage must remain valid and must not be moved after
  *          initialization.
  */
-rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
-                                             bool initially_available);
+artos_semaphore_t *
+artos_binary_semaphore_init(artos_semaphore_storage_t *storage,
+                            bool initially_available);
 
 /**
  * @brief Initialize a counting semaphore in caller-owned storage.
@@ -204,8 +205,8 @@ rtos_semaphore_t *rtos_binary_semaphore_init(rtos_semaphore_storage_t *storage,
  * @warning The storage must remain valid and must not be moved after
  *          initialization.
  */
-rtos_semaphore_t *
-rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
+artos_semaphore_t *
+rtos_counting_semaphore_init(artos_semaphore_storage_t *storage,
                              uint32_t max_count, uint32_t initial_count);
 
 /**
@@ -219,7 +220,7 @@ rtos_counting_semaphore_init(rtos_semaphore_storage_t *storage,
  *       highest-priority waiter first. Equal-priority waiters are served FIFO.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
-bool rtos_semaphore_take(rtos_semaphore_t *semaphore, uint32_t tick_timeout);
+bool artos_semaphore_take(artos_semaphore_t *semaphore, uint32_t tick_timeout);
 
 /**
  * @brief Attempt to take one semaphore token from interrupt context.
@@ -227,7 +228,7 @@ bool rtos_semaphore_take(rtos_semaphore_t *semaphore, uint32_t tick_timeout);
  * @return True if a token was obtained, otherwise false.
  * @note This operation never blocks.
  */
-bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
+bool artos_semaphore_take_isr(artos_semaphore_t *semaphore);
 
 /**
  * @brief Signal a semaphore from interrupt context.
@@ -244,8 +245,8 @@ bool rtos_semaphore_take_isr(rtos_semaphore_t *semaphore);
  * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
-bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
-                               bool *gt_task_woken);
+bool artos_semaphore_signal_isr(artos_semaphore_t *semaphore,
+                                bool *gt_task_woken);
 
 /**
  * @brief Signal a semaphore from task context.
@@ -257,7 +258,7 @@ bool rtos_semaphore_signal_isr(rtos_semaphore_t *semaphore,
  * @note Requests a context switch only when the unblocked task has higher
  *       priority than the calling task.
  */
-bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
+bool artos_semaphore_signal(artos_semaphore_t *semaphore);
 
 // =========================
 //           Queue
@@ -268,7 +269,7 @@ bool rtos_semaphore_signal(rtos_semaphore_t *semaphore);
  * @note Message ordering is FIFO. Readers and writers waiting on the queue are
  *       ordered by priority, with FIFO ordering among equal-priority tasks.
  */
-typedef struct rtos_queue rtos_queue_t;
+typedef struct artos_queue artos_queue_t;
 
 /**
  * @brief Caller-owned storage for a queue control block.
@@ -278,11 +279,11 @@ typedef struct {
   /** @cond INTERNAL */
   uint32_t _a, _b, _c, _d;
   size_t _e;
-  rtos_static_list_t _r;
-  rtos_static_list_t _w;
+  artos_static_list_t _r;
+  artos_static_list_t _w;
   uint8_t *_s;
   /** @endcond */
-} rtos_queue_control_storage_t;
+} artos_queue_control_storage_t;
 
 /**
  * @brief Initialize a bounded FIFO queue using caller-owned storage.
@@ -296,9 +297,9 @@ typedef struct {
  * @warning The caller must provide at least `item_size * capacity` addressable
  *          bytes. Both storage objects must remain valid and must not be moved.
  */
-rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
-                              uint8_t *storage, size_t item_size,
-                              uint32_t capacity);
+artos_queue_t *artos_queue_init(artos_queue_control_storage_t *control,
+                                uint8_t *storage, size_t item_size,
+                                uint32_t capacity);
 
 /**
  * @brief Copy one item into a queue, optionally waiting for free space.
@@ -313,8 +314,8 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
  *       the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
-bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
-                        uint32_t tick_timeout);
+bool artos_queue_enqueue(artos_queue_t *queue, uint8_t *data,
+                         uint32_t tick_timeout);
 
 /**
  * @brief Copy one item out of a queue, optionally waiting for data.
@@ -329,8 +330,8 @@ bool rtos_queue_enqueue(rtos_queue_t *queue, uint8_t *data,
  *       the calling task.
  * @warning Task-context-only. Do not call while already in a critical section.
  */
-bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
-                        uint32_t tick_timeout);
+bool artos_queue_dequeue(artos_queue_t *queue, uint8_t *dst,
+                         uint32_t tick_timeout);
 
 /**
  * @brief Copy one item into a queue from interrupt context.
@@ -348,8 +349,8 @@ bool rtos_queue_dequeue(rtos_queue_t *queue, uint8_t *dst,
  * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
-bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
-                                 bool *gt_task_woken);
+bool artos_queue_enqueue_from_isr(artos_queue_t *queue, uint8_t *data,
+                                  bool *gt_task_woken);
 
 /**
  * @brief Copy one item out of a queue from interrupt context.
@@ -367,8 +368,8 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *queue, uint8_t *data,
  * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
-bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
-                                 bool *gt_task_woken);
+bool artos_queue_dequeue_from_isr(artos_queue_t *queue, uint8_t *dst,
+                                  bool *gt_task_woken);
 
 // =========================
 //           Mutex
@@ -379,7 +380,7 @@ bool rtos_queue_dequeue_from_isr(rtos_queue_t *queue, uint8_t *dst,
  * @note Waiting tasks are ordered by effective priority, with FIFO ordering
  *       among tasks at the same priority.
  */
-typedef struct rtos_mutex rtos_mutex_t;
+typedef struct artos_mutex artos_mutex_t;
 
 /**
  * @brief Caller-owned storage for a mutex control block.
@@ -388,9 +389,9 @@ typedef struct rtos_mutex rtos_mutex_t;
 typedef struct {
   /** @cond INTERNAL */
   void *_a;
-  rtos_static_list_t _w;
+  artos_static_list_t _w;
   /** @endcond */
-} rtos_mutex_storage_t;
+} artos_mutex_storage_t;
 
 /**
  * @brief Initialize a mutex in caller-owned storage.
@@ -399,7 +400,7 @@ typedef struct {
  * @warning The storage must remain valid and must not be moved after
  *          initialization.
  */
-rtos_mutex_t *rtos_mutex_init(rtos_mutex_storage_t *storage);
+artos_mutex_t *artos_mutex_init(artos_mutex_storage_t *storage);
 
 /**
  * @brief Lock a mutex, optionally blocking until ownership is available.
@@ -419,7 +420,7 @@ rtos_mutex_t *rtos_mutex_init(rtos_mutex_storage_t *storage);
  *          already in a critical section.
  * @warning The mutex is nonrecursive. Its owner cannot lock it again.
  */
-bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t timeout);
+bool artos_mutex_lock(artos_mutex_t *mutex, uint32_t timeout);
 
 /**
  * @brief Release a mutex owned by the calling task.
@@ -433,6 +434,6 @@ bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t timeout);
  * @warning Task-context-only. Do not call from interrupt context or while
  *          already in a critical section.
  */
-bool rtos_mutex_unlock(rtos_mutex_t *mutex);
+bool artos_mutex_unlock(artos_mutex_t *mutex);
 
 #endif // !ARTOS_H

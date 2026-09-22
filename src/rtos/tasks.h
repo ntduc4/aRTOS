@@ -17,9 +17,9 @@ typedef enum {
 
 typedef struct {
   // Current saved context
-  rtos_stack_word_t *stack_pointer;
+  artos_stack_word_t *stack_pointer;
   // Lowest C array address
-  rtos_stack_word_t *stack_buffer;
+  artos_stack_word_t *stack_buffer;
   uint32_t stack_word_count;
 
   rtos_task_fn_t entry;
@@ -58,7 +58,7 @@ bool rtos_priority_disinherit_after_timeout(rtos_tcb_t *task,
                                             uint8_t required_priority);
 
 // IMPORTANT FOR PORT, PORT NEED TO CALL THIS
-rtos_stack_word_t *
-rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer);
+artos_stack_word_t *
+rtos_scheduler_switch_context(artos_stack_word_t *current_stack_pointer);
 
 #endif // !ARTOS_INTERNAL_TASKS_H

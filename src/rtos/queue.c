@@ -10,7 +10,7 @@
 //          Queue
 // =======================
 
-struct rtos_queue {
+struct artos_queue {
   uint32_t count, capacity, read_index, write_index;
   size_t item_size;
   rtos_list_t read_list;
@@ -18,20 +18,21 @@ struct rtos_queue {
   uint8_t *storage;
 };
 
-_Static_assert(sizeof(rtos_queue_t) == sizeof(rtos_queue_control_storage_t),
+_Static_assert(sizeof(artos_queue_t) == sizeof(artos_queue_control_storage_t),
                "Queue storage size mismatch");
 
-_Static_assert(_Alignof(rtos_queue_t) == _Alignof(rtos_queue_control_storage_t),
+_Static_assert(_Alignof(artos_queue_t) ==
+                   _Alignof(artos_queue_control_storage_t),
                "Queue storage alignment mismatch");
 
-rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
-                              uint8_t *storage, size_t item_size,
-                              uint32_t capacity) {
+artos_queue_t *artos_queue_init(artos_queue_control_storage_t *control,
+                                uint8_t *storage, size_t item_size,
+                                uint32_t capacity) {
   if (control == NULL || storage == NULL || capacity == 0 || item_size == 0)
     return NULL;
   if (SIZE_MAX / item_size < capacity)
     return NULL;
-  rtos_queue_t *q = (void *)control;
+  artos_queue_t *q = (void *)control;
 
   q->count = 0;
   q->item_size = item_size;
@@ -45,7 +46,7 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
   return q;
 }
 
-static void rtos_queue_assert_valid(const rtos_queue_t *q) {
+static void rtos_queue_assert_valid(const artos_queue_t *q) {
   ARTOS_ASSERT(q != NULL);
   ARTOS_ASSERT(q->capacity > 0U);
   ARTOS_ASSERT(q->item_size > 0U);
@@ -55,7 +56,8 @@ static void rtos_queue_assert_valid(const rtos_queue_t *q) {
   ARTOS_ASSERT(q->write_index < q->capacity);
 }
 
-bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
+bool artos_queue_enqueue(artos_queue_t *q, uint8_t *data,
+                         uint32_t tick_timeout) {
   if (q == NULL || data == NULL)
     return false;
 
@@ -109,7 +111,8 @@ bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
   return true;
 }
 
-bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
+bool artos_queue_dequeue(artos_queue_t *q, uint8_t *dst,
+                         uint32_t tick_timeout) {
   if (q == NULL || dst == NULL)
     return false;
 
@@ -162,8 +165,8 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
   return true;
 }
 
-bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
-                                 bool *gt_task_woken) {
+bool artos_queue_enqueue_from_isr(artos_queue_t *q, uint8_t *data,
+                                  bool *gt_task_woken) {
   if (q == NULL || data == NULL)
     return false;
 
@@ -191,8 +194,8 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
   return true;
 }
 
-bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
-                                 bool *gt_task_woken) {
+bool artos_queue_dequeue_from_isr(artos_queue_t *q, uint8_t *dst,
+                                  bool *gt_task_woken) {
   if (q == NULL || dst == NULL)
     return false;
 

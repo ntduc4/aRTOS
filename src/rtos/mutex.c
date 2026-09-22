@@ -5,22 +5,22 @@
 #include "rtos/ports/rtos_port.h"
 #include "rtos/tasks.h"
 
-struct rtos_mutex {
+struct artos_mutex {
   // Modify by task provided method instead
   rtos_tcb_t *owner;
   rtos_list_t lock_list;
 };
 
-_Static_assert(sizeof(rtos_mutex_t) == sizeof(rtos_mutex_storage_t),
+_Static_assert(sizeof(artos_mutex_t) == sizeof(artos_mutex_storage_t),
                "mutex storage size mismatch");
 
-_Static_assert(_Alignof(rtos_mutex_t) == _Alignof(rtos_mutex_storage_t),
+_Static_assert(_Alignof(artos_mutex_t) == _Alignof(artos_mutex_storage_t),
                "mutex storage alignment mismatch");
 
-rtos_mutex_t *rtos_mutex_init(rtos_mutex_storage_t *storage) {
+artos_mutex_t *artos_mutex_init(artos_mutex_storage_t *storage) {
   if (storage == NULL)
     return NULL;
-  rtos_mutex_t *mutex = (void *)storage;
+  artos_mutex_t *mutex = (void *)storage;
   mutex->owner = NULL;
   rtos_init_list(&mutex->lock_list);
   return mutex;
@@ -44,7 +44,7 @@ static uint8_t rtos_mutex_required_priority(rtos_tcb_t *owner,
   return priority;
 }
 
-bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t tick_timeout) {
+bool artos_mutex_lock(artos_mutex_t *mutex, uint32_t tick_timeout) {
   if (mutex == NULL)
     return false;
 
@@ -93,7 +93,7 @@ bool rtos_mutex_lock(rtos_mutex_t *mutex, uint32_t tick_timeout) {
   return res;
 }
 
-bool rtos_mutex_unlock(rtos_mutex_t *mutex) {
+bool artos_mutex_unlock(artos_mutex_t *mutex) {
   if (mutex == NULL)
     return false;
 

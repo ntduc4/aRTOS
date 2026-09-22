@@ -23,9 +23,9 @@ typedef struct {
   uint8_t base_priority;
   uint8_t effective_priority;
 
-  rtos_stack_word_t *stack_pointer;
-  rtos_stack_word_t *stack_low;
-  rtos_stack_word_t *stack_high;
+  artos_stack_word_t *stack_pointer;
+  artos_stack_word_t *stack_low;
+  artos_stack_word_t *stack_high;
 } rtos_failure_info_t;
 
 extern volatile rtos_failure_info_t rtos_failure_info;

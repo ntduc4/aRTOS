@@ -7,7 +7,7 @@
 #include "rtos/tasks.h"
 #include "rtos_config.h"
 
-_Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
+_Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
 
 #if !defined(__ARM_FP) || ((__ARM_FP & 0x04U) == 0U)
@@ -103,9 +103,9 @@ inline static void rtos_port_tick_init(void) {
   ARTOS_SysTick_CTRL = 0b111UL;       /* Enable SysTick IRQ and SysTick Timer */
 }
 
-rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
-                                              rtos_task_fn_t entry,
-                                              void *argument) {
+artos_stack_word_t *rtos_port_initialize_stack(artos_stack_word_t *stack_top,
+                                               rtos_task_fn_t entry,
+                                               void *argument) {
   // Auto saved registers
   *(--stack_top) = RTOS_PORT_INITIAL_XPSR;                // xPSR register;
   *(--stack_top) = ((uintptr_t)entry) & ~(uintptr_t)1U;   // PC
@@ -124,7 +124,7 @@ rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
   return stack_top;
 }
 
-void rtos_port_start_first_task(rtos_stack_word_t *saved_stack_pointer) {
+void rtos_port_start_first_task(artos_stack_word_t *saved_stack_pointer) {
   // PSP initially have software-saved registers
   __set_PSP((uint32_t)(uintptr_t)saved_stack_pointer);
   rtos_port_tick_init();
