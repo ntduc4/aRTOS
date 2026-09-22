@@ -38,11 +38,11 @@ runtime allocation failure after initialization.
 
 | Resource | Storage model |
 | --- | --- |
-| Task control blocks | Fixed kernel pool sized by `RTOS_MAX_TASKS` |
+| Task control blocks | Fixed kernel pool sized by `ARTOS_MAX_TASKS` |
 | Task stacks | Arrays supplied by the application |
-| Semaphore state | `rtos_semaphore_storage_t` supplied by the application |
-| Mutex state | `rtos_mutex_storage_t` supplied by the application |
-| Queue state | `rtos_queue_control_storage_t` supplied by the application |
+| Semaphore state | `artos_semaphore_storage_t` supplied by the application |
+| Mutex state | `artos_mutex_storage_t` supplied by the application |
+| Queue state | `artos_queue_control_storage_t` supplied by the application |
 | Queue items | Fixed application-owned byte buffer |
 | Idle task | Fixed kernel-owned stack and control block |
 
@@ -84,16 +84,16 @@ context switch. Creating one later from task context requests a context switch
 if the new task has strictly higher priority than the calling task. Equal- and
 lower-priority tasks become ready without an immediate switch. Task creation is
 not supported from interrupt context. A priority must be in the range `0`
-through `RTOS_PRIORITY_COUNT - 1`.
+through `ARTOS_PRIORITY_COUNT - 1`.
 
 ### Blocking And Time
 
 Tasks can yield, sleep for a relative duration, or sleep until an absolute tick:
 
 ```c
-rtos_yield();
-rtos_wait(RTOS_MS_TO_TICKS(250));
-rtos_wait_until(next_release_tick);
+artos_yield();
+artos_wait(ARTOS_MS_TO_TICKS(250));
+artos_wait_until(next_release_tick);
 ```
 
 Delayed tasks are kept in sorted intrusive lists. A second delayed list handles
@@ -108,24 +108,24 @@ directly to the highest-priority waiting task. Equal-priority waiters are served
 in FIFO order.
 
 ```c
-static rtos_semaphore_storage_t lock_storage;
-static rtos_semaphore_t *lock;
+static artos_semaphore_storage_t lock_storage;
+static artos_semaphore_t *lock;
 
-lock = rtos_binary_semaphore_init(&lock_storage, true);
+lock = artos_binary_semaphore_init(&lock_storage, true);
 
-if (rtos_semaphore_take(lock, RTOS_DELAY_INFINITY)) {
+if (artos_semaphore_take(lock, ARTOS_DELAY_INFINITY)) {
   use_shared_resource();
-  rtos_semaphore_signal(lock);
+  artos_semaphore_signal(lock);
 }
 ```
 
 Counting semaphores use an explicit maximum and initial count:
 
 ```c
-static rtos_semaphore_storage_t slots_storage;
-static rtos_semaphore_t *slots;
+static artos_semaphore_storage_t slots_storage;
+static artos_semaphore_t *slots;
 
-slots = rtos_counting_semaphore_init(&slots_storage, 8U, 8U);
+slots = artos_counting_semaphore_init(&slots_storage, 8U, 8U);
 ```
 
 ### Mutexes
@@ -136,14 +136,14 @@ nonblocking, bounded by a timeout, or infinite. Only the owning task can unlock
 the mutex.
 
 ```c
-static rtos_mutex_storage_t mutex_storage;
-static rtos_mutex_t *mutex;
+static artos_mutex_storage_t mutex_storage;
+static artos_mutex_t *mutex;
 
-mutex = rtos_mutex_init(&mutex_storage);
+mutex = artos_mutex_init(&mutex_storage);
 
-if (rtos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+if (artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
   use_shared_resource();
-  rtos_mutex_unlock(mutex);
+  artos_mutex_unlock(mutex);
 }
 ```
 
@@ -172,12 +172,12 @@ typedef struct {
 
 enum { QUEUE_CAPACITY = 8 };
 
-static rtos_queue_control_storage_t queue_control;
+static artos_queue_control_storage_t queue_control;
 static message_t queue_items[QUEUE_CAPACITY];
-static rtos_queue_t *queue;
+static artos_queue_t *queue;
 
-queue = rtos_queue_init(&queue_control, (uint8_t *)queue_items,
-                        sizeof(message_t), QUEUE_CAPACITY);
+queue = artos_queue_init(&queue_control, (uint8_t *)queue_items,
+                         sizeof(message_t), QUEUE_CAPACITY);
 ```
 
 Task operations support zero, finite, and infinite timeouts. Readers and writers
@@ -198,12 +198,12 @@ void EXTI15_10_IRQHandler(void) {
   bool task_woken = false;
 
   clear_interrupt_source();
-  rtos_queue_enqueue_from_isr(button_queue, (uint8_t *)&message,
-                              &task_woken);
-  rtos_semaphore_signal_isr(event_semaphore, &task_woken);
+  artos_queue_enqueue_from_isr(button_queue, (uint8_t *)&message,
+                               &task_woken);
+  artos_semaphore_signal_isr(event_semaphore, &task_woken);
 
   if (task_woken)
-    rtos_yield_from_isr();
+    artos_yield_from_isr();
 }
 ```
 
@@ -328,7 +328,7 @@ enum {
   WORKER_PRIORITY = 1
 };
 
-static rtos_stack_word_t worker_stack[TASK_STACK_WORDS]
+static artos_stack_word_t worker_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 
 static void worker(void *argument) {
@@ -336,20 +336,20 @@ static void worker(void *argument) {
 
   for (;;) {
     do_work();
-    rtos_wait(RTOS_MS_TO_TICKS(100));
+    artos_wait(ARTOS_MS_TO_TICKS(100));
   }
 }
 
 int main(void) {
   hardware_init();
-  rtos_init();
+  artos_init();
 
-  if (rtos_task_create(worker, NULL, worker_stack, TASK_STACK_WORDS,
-                       WORKER_PRIORITY) != RTOS_OK)
+  if (artos_task_create(worker, NULL, worker_stack, TASK_STACK_WORDS,
+                        WORKER_PRIORITY) != ARTOS_OK)
     for (;;) {
     }
 
-  rtos_start();
+  artos_start();
 
   for (;;) {
   }
@@ -365,18 +365,18 @@ Kernel configuration lives in `include/rtos_config.h`:
 
 | Setting | Current value | Purpose |
 | --- | ---: | --- |
-| `RTOS_MAX_TASKS` | `16` | Maximum number of user tasks in the static TCB pool |
-| `RTOS_TICK_HZ` | `1000` | SysTick frequency and kernel time base |
-| `RTOS_PRIORITY_COUNT` | `2` | Number of task priority levels, from `0` through `RTOS_PRIORITY_COUNT - 1` |
-| `RTOS_MIN_STACK_WORDS` | `64` | Minimum accepted task stack size in machine words |
+| `ARTOS_MAX_TASKS` | `16` | Maximum number of user tasks in the static TCB pool |
+| `ARTOS_TICK_HZ` | `1000` | SysTick frequency and kernel time base |
+| `ARTOS_PRIORITY_COUNT` | `2` | Number of task priority levels, from `0` through `ARTOS_PRIORITY_COUNT - 1` |
+| `ARTOS_MIN_STACK_WORDS` | `64` | Minimum accepted task stack size in machine words |
 | `ARTOS_CPU_CLOCK_HZ` | `16000000` | Processor clock used to calculate the SysTick reload value |
 | `ARTOS_ENABLE_ASSERTS` | `1` | Enables internal kernel invariant checks |
 | `ARTOS_DEBUG_BREAK_ON_FAILURE` | `1` | Executes a debugger breakpoint before halting on failure |
 
 Task stack tops must be 8-byte aligned. The current Cortex-M4F port saves the
 floating-point high registers when an extended exception frame is active.
-`ARTOS_CPU_CLOCK_HZ` must match the processor clock when `rtos_start()` is
-called. The configured clock divided by `RTOS_TICK_HZ` must fit the SysTick
+`ARTOS_CPU_CLOCK_HZ` must match the processor clock when `artos_start()` is
+called. The configured clock divided by `ARTOS_TICK_HZ` must fit the SysTick
 24-bit reload register.
 
 ## Project Layout

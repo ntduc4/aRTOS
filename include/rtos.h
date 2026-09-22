@@ -20,7 +20,7 @@
 /**
  * @brief Convert milliseconds to kernel ticks.
  * @param ms Duration in milliseconds.
- * @return Duration converted using RTOS_TICK_HZ, rounded down.
+ * @return Duration converted using ARTOS_TICK_HZ, rounded down.
  */
 #define ARTOS_MS_TO_TICKS(ms)                                                  \
   ((uint32_t)(((uint64_t)(ms) * (uint64_t)ARTOS_TICK_HZ) / 1000U))
@@ -62,16 +62,16 @@ typedef uintptr_t artos_stack_word_t;
  * @param entry Task entry point. Must not be NULL and must not return.
  * @param argument Argument passed to @p entry. May be NULL.
  * @param stack Persistent stack buffer owned by the caller.
- * @param stack_word_count Number of rtos_stack_word_t elements in @p stack.
+ * @param stack_word_count Number of artos_stack_word_t elements in @p stack.
  * @param priority Task priority in the range 0 through
- *        `RTOS_PRIORITY_COUNT - 1`. Larger values have higher priority.
- * @return RTOS_OK on success.
- * @return RTOS_ERROR_INVALID_ARGUMENT if @p entry or @p stack is NULL, or if
+ *        `ARTOS_PRIORITY_COUNT - 1`. Larger values have higher priority.
+ * @return ARTOS_OK on success.
+ * @return ARTOS_ERROR_INVALID_ARGUMENT if @p entry or @p stack is NULL, or if
  *         @p priority is outside the configured range, or if the stack top is
  *         not 8-byte aligned.
- * @return RTOS_ERROR_STACK_TOO_SMALL if the stack contains fewer than
- *         RTOS_MIN_STACK_WORDS elements.
- * @return RTOS_ERROR_TASK_LIMIT if the static task pool is full.
+ * @return ARTOS_ERROR_STACK_TOO_SMALL if the stack contains fewer than
+ *         ARTOS_MIN_STACK_WORDS elements.
+ * @return ARTOS_ERROR_TASK_LIMIT if the static task pool is full.
  * @warning The stack storage must remain valid and must not be moved while the
  *          task exists.
  * @warning Do not call this function from interrupt context.
@@ -88,7 +88,7 @@ artos_status_t artos_task_create(artos_task_fn_t entry, void *argument,
 
 /**
  * @brief Start scheduling with the highest-priority created task.
- * @return RTOS_ERROR_NO_TASKS if no user task has been created.
+ * @return ARTOS_ERROR_NO_TASKS if no user task has been created.
  * @note A successful call does not return.
  */
 artos_status_t artos_start(void);
@@ -110,8 +110,8 @@ void artos_yield_from_isr(void);
 
 /**
  * @brief Block the current task for a relative number of ticks.
- * @param tick_count Number of ticks to wait. Zero behaves like rtos_yield().
- *        RTOS_DELAY_INFINITY blocks indefinitely.
+ * @param tick_count Number of ticks to wait. Zero behaves like artos_yield().
+ *        ARTOS_DELAY_INFINITY blocks indefinitely.
  * @note When the delay expires, the task becomes ready and preempts the running
  *       task if it has equal or higher priority.
  * @warning Task-context-only. Do not call while already in a critical section.
@@ -121,7 +121,7 @@ void artos_wait(uint32_t tick_count);
 /**
  * @brief Block the current task until an absolute kernel tick.
  * @param wake_tick Absolute tick at which the task should become ready.
- * @note RTOS_DELAY_INFINITY has no special meaning for this function.
+ * @note ARTOS_DELAY_INFINITY has no special meaning for this function.
  * @note The valid future horizon is 1 through 0x7fffffff ticks. A value outside
  *       that horizon is treated as current or past time and does not block.
  * @note On expiry, the task becomes ready and preempts the running task if it
@@ -213,7 +213,7 @@ artos_counting_semaphore_init(artos_semaphore_storage_t *storage,
  * @brief Take one semaphore token, optionally blocking until one is available.
  * @param semaphore Semaphore to take.
  * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
- *        RTOS_DELAY_INFINITY waits indefinitely.
+ *        ARTOS_DELAY_INFINITY waits indefinitely.
  * @return True if a token was obtained, otherwise false for an invalid handle
  *         or timeout.
  * @note If the task blocks, semaphore signals are handed to the
@@ -242,7 +242,7 @@ bool artos_semaphore_take_isr(artos_semaphore_t *semaphore);
  * @note The highest-priority waiter is unblocked first. Equal-priority waiters
  *       are served FIFO.
  * @note This operation never blocks and @p gt_task_woken may be NULL.
- * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note If @p gt_task_woken becomes true, call artos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool artos_semaphore_signal_isr(artos_semaphore_t *semaphore,
@@ -306,7 +306,7 @@ artos_queue_t *artos_queue_init(artos_queue_control_storage_t *control,
  * @param queue Queue to receive the item.
  * @param data Source buffer containing at least the queue's item size in bytes.
  * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
- *        RTOS_DELAY_INFINITY waits indefinitely.
+ *        ARTOS_DELAY_INFINITY waits indefinitely.
  * @return True if the item was enqueued, otherwise false for invalid arguments
  *         or timeout.
  * @note A successful enqueue unblocks the highest-priority waiting reader. A
@@ -322,7 +322,7 @@ bool artos_queue_enqueue(artos_queue_t *queue, uint8_t *data,
  * @param queue Queue from which to receive the item.
  * @param dst Destination buffer with space for the queue's item size in bytes.
  * @param tick_timeout Maximum ticks to wait. Zero is nonblocking and
- *        RTOS_DELAY_INFINITY waits indefinitely.
+ *        ARTOS_DELAY_INFINITY waits indefinitely.
  * @return True if an item was dequeued, otherwise false for invalid arguments
  *         or timeout.
  * @note A successful dequeue unblocks the highest-priority waiting writer. A
@@ -346,7 +346,7 @@ bool artos_queue_dequeue(artos_queue_t *queue, uint8_t *dst,
  * @note The highest-priority waiting reader is unblocked first. Equal-priority
  *       waiters are served FIFO.
  * @note This operation never blocks and @p gt_task_woken may be NULL.
- * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note If @p gt_task_woken becomes true, call artos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool artos_queue_enqueue_from_isr(artos_queue_t *queue, uint8_t *data,
@@ -365,7 +365,7 @@ bool artos_queue_enqueue_from_isr(artos_queue_t *queue, uint8_t *data,
  * @note The highest-priority waiting writer is unblocked first. Equal-priority
  *       waiters are served FIFO.
  * @note This operation never blocks and @p gt_task_woken may be NULL.
- * @note If @p gt_task_woken becomes true, call rtos_yield_from_isr() after
+ * @note If @p gt_task_woken becomes true, call artos_yield_from_isr() after
  *       completing the required peripheral cleanup.
  */
 bool artos_queue_dequeue_from_isr(artos_queue_t *queue, uint8_t *dst,
@@ -406,7 +406,7 @@ artos_mutex_t *artos_mutex_init(artos_mutex_storage_t *storage);
  * @brief Lock a mutex, optionally blocking until ownership is available.
  * @param mutex Mutex to lock.
  * @param timeout Maximum ticks to wait. Zero performs a nonblocking try-lock,
- *        and RTOS_DELAY_INFINITY waits indefinitely.
+ *        and ARTOS_DELAY_INFINITY waits indefinitely.
  * @return True if the calling task acquired ownership, otherwise false for a
  *         null handle, recursive acquisition, held-mutex limit, or timeout.
  * @note Ownership is handed directly to the highest-effective-priority waiter.
