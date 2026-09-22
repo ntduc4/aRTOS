@@ -1,5 +1,5 @@
-#ifndef RTOS_CONFIG_H
-#define RTOS_CONFIG_H
+#ifndef ARTOS_CONFIG_H
+#define ARTOS_CONFIG_H
 
 #define ARTOS_MAX_TASKS 16U
 #define ARTOS_TICK_HZ 1000U
@@ -12,4 +12,4 @@
 // MUST BE MULTIPLE OF 8
 #define ARTOS_MIN_STACK_WORDS 64U
 
-#endif // !RTOS_CONFIG_H
+#endif // !ARTOS_CONFIG_H

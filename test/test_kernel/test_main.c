@@ -225,13 +225,13 @@ static void test_task_creation_validates_arguments(void) {
       artos_task_create(test_task, NULL, NULL, TEST_STACK_WORDS, 0U));
   TEST_ASSERT_EQUAL(ARTOS_ERROR_INVALID_ARGUMENT,
                     artos_task_create(test_task, NULL, test_stack,
-                                      TEST_STACK_WORDS, RTOS_PRIORITY_COUNT));
+                                      TEST_STACK_WORDS, ARTOS_PRIORITY_COUNT));
   TEST_ASSERT_EQUAL(ARTOS_ERROR_INVALID_ARGUMENT,
                     artos_task_create(test_task, NULL, misaligned_stack + 1U,
                                       TEST_STACK_WORDS, 0U));
   TEST_ASSERT_EQUAL(ARTOS_ERROR_STACK_TOO_SMALL,
                     artos_task_create(test_task, NULL, test_stack,
-                                      RTOS_MIN_STACK_WORDS - 2U, 0U));
+                                      ARTOS_MIN_STACK_WORDS - 2U, 0U));
 }
 
 static void test_task_creation_and_inspection(void) {
@@ -251,10 +251,10 @@ static void test_task_creation_and_inspection(void) {
 }
 
 static void test_task_pool_limit(void) {
-  for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++) {
+  for (uint32_t i = 0U; i < ARTOS_MAX_TASKS; i++) {
     TEST_ASSERT_EQUAL(ARTOS_OK,
                       artos_task_create(test_task, NULL, task_limit_stacks[i],
-                                        RTOS_MIN_STACK_WORDS, 0U));
+                                        ARTOS_MIN_STACK_WORDS, 0U));
   }
 
   TEST_ASSERT_EQUAL(

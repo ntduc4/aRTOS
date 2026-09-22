@@ -18,7 +18,7 @@ _Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
 #error "RTOS_TICK_HZ must be greater than zero"
 #endif
 
-#if ARTOS_CPU_CLOCK_HZ < RTOS_TICK_HZ
+#if ARTOS_CPU_CLOCK_HZ < ARTOS_TICK_HZ
 #error "SysTick frequency exceeds CPU clock"
 #endif
 
@@ -26,8 +26,8 @@ _Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
 #error "SysTick reload exceeds 24 bits"
 #endif
 
-#define RTOS_PORT_INITIAL_XPSR (1UL << 24)
-#define RTOS_PORT_INITIAL_EXC_RETURN (0xFFFFFFFDU)
+#define ARTOS_PORT_INITIAL_XPSR (1UL << 24)
+#define ARTOS_PORT_INITIAL_EXC_RETURN (0xFFFFFFFDU)
 
 #define ARTOS_SCS 0xE000E000UL
 
@@ -107,7 +107,7 @@ artos_stack_word_t *rtos_port_initialize_stack(artos_stack_word_t *stack_top,
                                                artos_task_fn_t entry,
                                                void *argument) {
   // Auto saved registers
-  *(--stack_top) = RTOS_PORT_INITIAL_XPSR;                // xPSR register;
+  *(--stack_top) = ARTOS_PORT_INITIAL_XPSR;               // xPSR register;
   *(--stack_top) = ((uintptr_t)entry) & ~(uintptr_t)1U;   // PC
   *(--stack_top) = (uintptr_t)rtos_port_task_return_trap; // Task LR
   *(--stack_top) = 0U;                                    // R12
@@ -117,7 +117,7 @@ artos_stack_word_t *rtos_port_initialize_stack(artos_stack_word_t *stack_top,
   *(--stack_top) = (uintptr_t)argument;                   // R0
 
   // Software saved registers
-  *(--stack_top) = RTOS_PORT_INITIAL_EXC_RETURN; // Table 18 programming manual
+  *(--stack_top) = ARTOS_PORT_INITIAL_EXC_RETURN; // Table 18 programming manual
   for (uint32_t i = 0U; i < 8U; i++)
     *(--stack_top) = 0U;
 
@@ -131,7 +131,7 @@ void rtos_port_start_first_task(artos_stack_word_t *saved_stack_pointer) {
   __enable_irq(); // Make SVC able to execute
 
   // NOTE: Theoretically a SysTick can land here
-  //       Practically never happen (unless RTOS_TICK_HZ is much higher)
+  //       Practically never happen (unless ARTOS_TICK_HZ is much higher)
 
   // Enger handler mode so EXC_RETURN can be used
   __asm volatile("svc 0" ::: "memory");
