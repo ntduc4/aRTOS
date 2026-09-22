@@ -14,8 +14,8 @@ static artos_stack_word_t test_stack[TEST_STACK_WORDS]
     __attribute__((aligned(8)));
 static artos_stack_word_t misaligned_stack[TEST_STACK_WORDS + 1U]
     __attribute__((aligned(8)));
-static artos_stack_word_t task_limit_stacks[RTOS_MAX_TASKS]
-                                           [RTOS_MIN_STACK_WORDS]
+static artos_stack_word_t task_limit_stacks[ARTOS_MAX_TASKS]
+                                           [ARTOS_MIN_STACK_WORDS]
     __attribute__((aligned(8)));
 
 static void test_task(void *argument) {
@@ -24,7 +24,7 @@ static void test_task(void *argument) {
   }
 }
 
-void setUp(void) { rtos_init(); }
+void setUp(void) { artos_init(); }
 
 void tearDown(void) {}
 
@@ -184,7 +184,8 @@ static void test_binary_semaphore_enforces_one_token(void) {
 
 static void test_counting_semaphore_enforces_maximum(void) {
   artos_semaphore_storage_t storage;
-  artos_semaphore_t *semaphore = rtos_counting_semaphore_init(&storage, 3U, 2U);
+  artos_semaphore_t *semaphore =
+      artos_counting_semaphore_init(&storage, 3U, 2U);
 
   TEST_ASSERT_NOT_NULL(semaphore);
   TEST_ASSERT_TRUE(artos_semaphore_take_isr(semaphore));
@@ -200,9 +201,9 @@ static void test_semaphore_rejects_invalid_initialization(void) {
   artos_semaphore_storage_t storage;
 
   TEST_ASSERT_NULL(artos_binary_semaphore_init(NULL, false));
-  TEST_ASSERT_NULL(rtos_counting_semaphore_init(NULL, 1U, 0U));
-  TEST_ASSERT_NULL(rtos_counting_semaphore_init(&storage, 0U, 0U));
-  TEST_ASSERT_NULL(rtos_counting_semaphore_init(&storage, 1U, 2U));
+  TEST_ASSERT_NULL(artos_counting_semaphore_init(NULL, 1U, 0U));
+  TEST_ASSERT_NULL(artos_counting_semaphore_init(&storage, 0U, 0U));
+  TEST_ASSERT_NULL(artos_counting_semaphore_init(&storage, 1U, 2U));
 }
 
 static void test_mutex_requires_task_context(void) {

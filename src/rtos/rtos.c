@@ -3,9 +3,9 @@
 #include "rtos/ports/rtos_port.h"
 #include "tasks.h"
 
-void rtos_init(void) { rtos_system_init(); }
+void artos_init(void) { rtos_system_init(); }
 
-rtos_status_t artos_start(void) {
+artos_status_t artos_start(void) {
   rtos_tcb_t *first_task = rtos_scheduler_start();
   if (first_task == NULL)
     return ARTOS_ERROR_NO_TASKS;
@@ -23,10 +23,10 @@ void artos_yield_from_isr(void) { rtos_port_request_context_switch_from_isr(); }
 void artos_wait(uint32_t tick_count) {
   if (tick_count > 0) {
     rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-    rtos_block_current_task(tick_count == RTOS_DELAY_INFINITY
-                                ? RTOS_DELAY_INFINITY
+    rtos_block_current_task(tick_count == ARTOS_DELAY_INFINITY
+                                ? ARTOS_DELAY_INFINITY
                                 : rtos_current_tick() + tick_count,
-                            NULL, tick_count == RTOS_DELAY_INFINITY);
+                            NULL, tick_count == ARTOS_DELAY_INFINITY);
     rtos_port_exit_critical(prev_state);
   }
 

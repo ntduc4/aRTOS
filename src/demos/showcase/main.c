@@ -86,7 +86,7 @@ void EXTI15_10_IRQHandler(void) {
   EXTI->PR = BUTTON_MASK;
   uint32_t now = artos_get_tick();
   if (button_seen &&
-      now - last_button_tick < RTOS_MS_TO_TICKS(BUTTON_DEBOUNCE_MS))
+      now - last_button_tick < ARTOS_MS_TO_TICKS(BUTTON_DEBOUNCE_MS))
     return;
 
   button_seen = true;
@@ -102,7 +102,7 @@ void EXTI15_10_IRQHandler(void) {
 static void led_task(void *argument) {
   uint32_t next_run_tick = artos_get_tick();
   for (;;) {
-    next_run_tick += RTOS_MS_TO_TICKS(2000U);
+    next_run_tick += ARTOS_MS_TO_TICKS(2000U);
     demo_led_set(true);
     artos_wait(500);
     demo_led_set(false);
@@ -128,7 +128,7 @@ static void heartbeat_task(void *argument) {
   for (;;) {
     demo_message_t message = {DEMO_HEARTBEAT, ++sequence, artos_get_tick()};
     artos_queue_enqueue(queue, (uint8_t *)&message, 0);
-    next_tick += RTOS_MS_TO_TICKS(HEARTBEAT_INTERVAL_MS);
+    next_tick += ARTOS_MS_TO_TICKS(HEARTBEAT_INTERVAL_MS);
     artos_wait_until(next_tick);
   }
 }
@@ -138,21 +138,21 @@ static void logger_task(void *argument) {
   for (;;) {
     demo_message_t message;
     if (!artos_queue_dequeue(queue, (uint8_t *)&message,
-                             RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
-      artos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
+                             ARTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
+      artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
       demo_uart_write_char('C');
       demo_uart_write_uint(consumer->id);
       demo_uart_write_string("\tNONE\t\t#NONE\t@");
       demo_uart_write_uint(artos_get_tick());
       demo_uart_write_string("\ttimeout=");
-      demo_uart_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
+      demo_uart_write_uint(ARTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
       demo_uart_write_char('\n');
       artos_semaphore_signal(uart_lock);
       continue;
     }
 
     uint32_t received_tick = artos_get_tick();
-    artos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
+    artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
     demo_uart_write_char('C');
     demo_uart_write_uint(consumer->id);
     demo_uart_write_char('\t');
@@ -168,7 +168,7 @@ static void logger_task(void *argument) {
     demo_uart_write_uint(received_tick - message.created_tick);
     demo_uart_write_char('\n');
     artos_semaphore_signal(uart_lock);
-    artos_wait(RTOS_MS_TO_TICKS(consumer->delay_ms));
+    artos_wait(ARTOS_MS_TO_TICKS(consumer->delay_ms));
   }
 }
 
@@ -176,11 +176,11 @@ static void button_logger_task(void *argument) {
   for (;;) {
     demo_message_t message;
     if (!artos_queue_dequeue(button_queue, (uint8_t *)&message,
-                             RTOS_DELAY_INFINITY))
+                             ARTOS_DELAY_INFINITY))
       continue;
 
     uint32_t received_tick = artos_get_tick();
-    artos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
+    artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
     demo_uart_write_string("BUTTON-ONLY\tBUTTON\t#");
     demo_uart_write_uint(message.sequence);
     demo_uart_write_string("\tcreated=@");
@@ -207,7 +207,7 @@ static void load_task(void *argument) {
 int main(void) {
   demo_board_init();
 
-  rtos_init();
+  artos_init();
 
   uart_lock = artos_binary_semaphore_init(&uart_lock_storage, true);
   queue = artos_queue_init(&queue_control, (uint8_t *)queue_items,
@@ -224,8 +224,8 @@ int main(void) {
       "Button events are also copied to the immediate BUTTON-ONLY queue.\n");
   demo_uart_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
 
-  rtos_status_t status1 = artos_task_create(led_task, NULL, led_stack,
-                                            TASK_STACK_WORDS, DEFAULT_PRIORITY);
+  artos_status_t status1 = artos_task_create(
+      led_task, NULL, led_stack, TASK_STACK_WORDS, DEFAULT_PRIORITY);
   if (status1 != ARTOS_OK)
     for (;;) {
     }

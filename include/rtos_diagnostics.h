@@ -11,7 +11,7 @@ typedef enum {
 } artos_task_state_t;
 
 typedef struct {
-  rtos_task_fn_t entry;
+  artos_task_fn_t entry;
   artos_task_state_t state;
 
   uint8_t base_priority;

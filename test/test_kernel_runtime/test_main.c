@@ -53,7 +53,7 @@ void tearDown(void) {}
 
 static void suspend_forever(void) {
   for (;;)
-    artos_wait(RTOS_DELAY_INFINITY);
+    artos_wait(ARTOS_DELAY_INFINITY);
 }
 
 static void priority_low_task(void *argument) {
@@ -109,7 +109,7 @@ static void semaphore_signaler_task(void *argument) {
 
 static void mutex_owner_task(void *argument) {
   (void)argument;
-  if (!artos_mutex_lock(mutex, RTOS_DELAY_INFINITY))
+  if (!artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY))
     suspend_forever();
 
   artos_wait_until(150U);
@@ -134,7 +134,7 @@ static void mutex_interferer_task(void *argument) {
 static void mutex_waiter_task(void *argument) {
   (void)argument;
   artos_wait_until(120U);
-  if (artos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+  if (artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
     mutex_waiter_acquired = true;
     (void)artos_mutex_unlock(mutex);
   }
@@ -183,7 +183,7 @@ static void reporter_task(void *argument) {
   suspend_forever();
 }
 
-static void create_task_or_halt(uint32_t stack_index, rtos_task_fn_t entry,
+static void create_task_or_halt(uint32_t stack_index, artos_task_fn_t entry,
                                 uint8_t priority) {
   if (artos_task_create(entry, NULL, task_stacks[stack_index], TASK_STACK_WORDS,
                         priority) != ARTOS_OK) {
@@ -194,7 +194,7 @@ static void create_task_or_halt(uint32_t stack_index, rtos_task_fn_t entry,
 
 int main(void) {
   UNITY_BEGIN();
-  rtos_init();
+  artos_init();
 
   queue = artos_queue_init(&queue_control, (uint8_t *)queue_storage,
                            sizeof(queue_storage[0]), QUEUE_CAPACITY);

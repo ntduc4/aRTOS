@@ -37,8 +37,8 @@ artos_binary_semaphore_init(artos_semaphore_storage_t *storage,
 }
 
 artos_semaphore_t *
-rtos_counting_semaphore_init(artos_semaphore_storage_t *storage,
-                             uint32_t max_count, uint32_t initial_count) {
+artos_counting_semaphore_init(artos_semaphore_storage_t *storage,
+                              uint32_t max_count, uint32_t initial_count) {
   if (storage == NULL || max_count == 0 || initial_count > max_count)
     return NULL;
   artos_semaphore_t *sem = (void *)storage;
@@ -65,8 +65,8 @@ bool artos_semaphore_take(artos_semaphore_t *sem, uint32_t tick_timeout) {
     return false;
   }
 
-  if (tick_timeout == RTOS_DELAY_INFINITY) {
-    rtos_block_current_task(RTOS_DELAY_INFINITY, &sem->wait_list, true);
+  if (tick_timeout == ARTOS_DELAY_INFINITY) {
+    rtos_block_current_task(ARTOS_DELAY_INFINITY, &sem->wait_list, true);
   } else {
     rtos_block_current_task(tick_timeout + rtos_current_tick(), &sem->wait_list,
                             false);

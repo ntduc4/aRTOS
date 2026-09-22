@@ -28,7 +28,7 @@ static worker_argument_t worker_b = {'B', 0U};
 static volatile uint32_t work_sink;
 
 static void uart_lock_take(void) {
-  (void)artos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
+  (void)artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
 }
 
 static void high_task(void *argument) {
@@ -37,7 +37,7 @@ static void high_task(void *argument) {
   uint32_t sequence = 0U;
 
   for (;;) {
-    release_tick += RTOS_MS_TO_TICKS(1000U);
+    release_tick += ARTOS_MS_TO_TICKS(1000U);
     demo_led_set(true);
 
     uart_lock_take();
@@ -48,7 +48,7 @@ static void high_task(void *argument) {
     demo_uart_write_char('\n');
     artos_semaphore_signal(uart_lock);
 
-    artos_wait(RTOS_MS_TO_TICKS(100U));
+    artos_wait(ARTOS_MS_TO_TICKS(100U));
     demo_led_set(false);
     artos_wait_until(release_tick);
   }
@@ -79,7 +79,7 @@ static void worker_task(void *argument) {
   }
 }
 
-static void create_task_or_halt(rtos_task_fn_t entry, void *argument,
+static void create_task_or_halt(artos_task_fn_t entry, void *argument,
                                 artos_stack_word_t *stack, uint8_t priority) {
   if (artos_task_create(entry, argument, stack, TASK_STACK_WORDS, priority) !=
       ARTOS_OK) {
@@ -90,7 +90,7 @@ static void create_task_or_halt(rtos_task_fn_t entry, void *argument,
 
 int main(void) {
   demo_board_init();
-  rtos_init();
+  artos_init();
 
   uart_lock = artos_binary_semaphore_init(&uart_lock_storage, true);
   if (uart_lock == NULL) {

@@ -9,16 +9,16 @@
 #include "rtos_diagnostics.h"
 #include "tasks.h"
 
-_Static_assert(RTOS_PRIORITY_COUNT <= 32,
+_Static_assert(ARTOS_PRIORITY_COUNT <= 32,
                "aRTOS only support up to 32 priorities");
-_Static_assert(RTOS_PRIORITY_COUNT > 0, "aRTOS requires atleast 1 priority");
+_Static_assert(ARTOS_PRIORITY_COUNT > 0, "aRTOS requires atleast 1 priority");
 
-static rtos_tcb_t _task_pool[RTOS_MAX_TASKS];
+static rtos_tcb_t _task_pool[ARTOS_MAX_TASKS];
 static uint32_t _tsk_cnt;
 static rtos_tcb_t *_cur_task;
 static uint32_t _ticks = 0;
 
-static rtos_list_t _ready_l[RTOS_PRIORITY_COUNT];
+static rtos_list_t _ready_l[ARTOS_PRIORITY_COUNT];
 static uint32_t _ready_bitmap;
 static rtos_list_t _delayed_l;
 static rtos_list_t _delayed_overflow_l;
@@ -27,12 +27,12 @@ static rtos_list_t _suspend_l;
 static rtos_list_t *_cur_delayed;
 static rtos_list_t *_next_delayed;
 
-static _Alignas(8) artos_stack_word_t idle_task_stack[RTOS_MIN_STACK_WORDS];
+static _Alignas(8) artos_stack_word_t idle_task_stack[ARTOS_MIN_STACK_WORDS];
 
 static rtos_tcb_t idle_task;
 
 static void rtos_insert_ready_list(rtos_tcb_t *task) {
-  if (task == NULL || task->effective_priority >= RTOS_PRIORITY_COUNT ||
+  if (task == NULL || task->effective_priority >= ARTOS_PRIORITY_COUNT ||
       task->state_item.container != NULL)
     return;
   rtos_list_insert_end(&_ready_l[task->effective_priority], &task->state_item);
@@ -62,7 +62,7 @@ static rtos_tcb_t *rtos_get_highest_prio_task() {
     return NULL;
   uint8_t highest_prio = rtos_port_find_msb32(_ready_bitmap);
 
-  ARTOS_ASSERT(highest_prio < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(highest_prio < ARTOS_PRIORITY_COUNT);
   ARTOS_ASSERT(_ready_l[highest_prio].count > 0U);
   ARTOS_ASSERT(_ready_l[highest_prio].sentinel.next->owner != NULL);
 
@@ -83,7 +83,7 @@ static rtos_tcb_t *rtos_get_highest_prio_task() {
   return task;
 }
 
-static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
+static inline void rtos_init_tcb(rtos_tcb_t *tcb, artos_task_fn_t entry,
                                  void *argument, artos_stack_word_t *stack,
                                  uint32_t stack_word_count, uint8_t priority) {
   for (uint32_t i = ARTOS_STACK_GUARD_WORDS; i < stack_word_count; i++)
@@ -108,21 +108,21 @@ static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
   tcb->wait_reason = WAIT_NO_REASON;
 }
 
-rtos_status_t artos_task_create(rtos_task_fn_t entry, void *argument,
-                                artos_stack_word_t *stack,
-                                uint32_t stack_word_count, uint8_t priority) {
-  if (stack == NULL || entry == NULL || priority >= RTOS_PRIORITY_COUNT)
+artos_status_t artos_task_create(artos_task_fn_t entry, void *argument,
+                                 artos_stack_word_t *stack,
+                                 uint32_t stack_word_count, uint8_t priority) {
+  if (stack == NULL || entry == NULL || priority >= ARTOS_PRIORITY_COUNT)
     return ARTOS_ERROR_INVALID_ARGUMENT;
   artos_stack_word_t *stack_top = stack + stack_word_count;
   if (((uintptr_t)(stack_top) & 0b111U) != 0U)
     return ARTOS_ERROR_INVALID_ARGUMENT;
-  if (stack_word_count < RTOS_MIN_STACK_WORDS)
+  if (stack_word_count < ARTOS_MIN_STACK_WORDS)
     return ARTOS_ERROR_STACK_TOO_SMALL;
-  if (_tsk_cnt == RTOS_MAX_TASKS)
+  if (_tsk_cnt == ARTOS_MAX_TASKS)
     return ARTOS_ERROR_TASK_LIMIT;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
-  for (uint32_t i = 0; i < RTOS_MAX_TASKS; i++) {
+  for (uint32_t i = 0; i < ARTOS_MAX_TASKS; i++) {
     if (_task_pool[i].stack_pointer == NULL) {
       rtos_init_tcb(&_task_pool[i], entry, argument, stack, stack_word_count,
                     priority);
@@ -144,16 +144,16 @@ void rtos_system_init(void) {
   // Setup idle task
 
   rtos_init_tcb(&idle_task, rtos_port_idle_task, NULL, idle_task_stack,
-                RTOS_MIN_STACK_WORDS, 0);
+                ARTOS_MIN_STACK_WORDS, 0);
 
-  for (uint32_t i = 0U; i < RTOS_MAX_TASKS; i++)
+  for (uint32_t i = 0U; i < ARTOS_MAX_TASKS; i++)
     _task_pool[i] = (rtos_tcb_t){0};
 
   _cur_task = 0;
   _ticks = 0;
   _tsk_cnt = 0;
 
-  for (uint8_t i = 0; i < RTOS_PRIORITY_COUNT; i++)
+  for (uint8_t i = 0; i < ARTOS_PRIORITY_COUNT; i++)
     rtos_init_list(&_ready_l[i]);
   rtos_init_list(&_delayed_l);
   rtos_init_list(&_delayed_overflow_l);
@@ -342,13 +342,13 @@ void rtos_decrement_mutex_count(rtos_tcb_t *task) {
 static bool rtos_set_effective_priority(rtos_tcb_t *task,
                                         uint8_t new_priority) {
   ARTOS_ASSERT(task != NULL);
-  ARTOS_ASSERT(task->priority < RTOS_PRIORITY_COUNT);
-  ARTOS_ASSERT(task->effective_priority < RTOS_PRIORITY_COUNT);
-  ARTOS_ASSERT(new_priority < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(task->priority < ARTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(task->effective_priority < ARTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(new_priority < ARTOS_PRIORITY_COUNT);
   ARTOS_ASSERT(new_priority >= task->priority);
 
   if (task == NULL || task->effective_priority == new_priority ||
-      task->priority > new_priority || new_priority >= RTOS_PRIORITY_COUNT)
+      task->priority > new_priority || new_priority >= ARTOS_PRIORITY_COUNT)
     return false;
 
   uint8_t old_priority = task->effective_priority;

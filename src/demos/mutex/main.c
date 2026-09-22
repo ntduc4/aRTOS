@@ -27,7 +27,7 @@ static volatile uint32_t interferer_rounds;
 static void low_task(void *argument) {
   (void)argument;
 
-  if (!artos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+  if (!artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
     for (;;) {
     }
   }
@@ -36,14 +36,14 @@ static void low_task(void *argument) {
   uint32_t start_tick = artos_get_tick();
   bool inheritance_reported = false;
 
-  while (artos_get_tick() - start_tick < RTOS_MS_TO_TICKS(1000U)) {
+  while (artos_get_tick() - start_tick < ARTOS_MS_TO_TICKS(1000U)) {
     uint32_t value = work_sink;
     for (uint32_t i = 0U; i < 2000U; i++)
       value = value * 1664525U + 1013904223U;
     work_sink = value;
 
     if (!inheritance_reported &&
-        artos_get_tick() - start_tick >= RTOS_MS_TO_TICKS(200U)) {
+        artos_get_tick() - start_tick >= ARTOS_MS_TO_TICKS(200U)) {
       artos_task_info_t info;
       if (artos_task_get_info(LOW_TASK_INDEX, &info)) {
         demo_uart_write_string("LOW while HIGH waits: base=");
@@ -60,7 +60,7 @@ static void low_task(void *argument) {
   demo_uart_write_string("LOW released mutex; inherited priority restored\n");
 
   for (;;)
-    artos_wait(RTOS_DELAY_INFINITY);
+    artos_wait(ARTOS_DELAY_INFINITY);
 }
 
 static void interferer_task(void *argument) {
@@ -77,10 +77,10 @@ static void interferer_task(void *argument) {
 
 static void high_task(void *argument) {
   (void)argument;
-  artos_wait(RTOS_MS_TO_TICKS(100U));
+  artos_wait(ARTOS_MS_TO_TICKS(100U));
 
   demo_uart_write_string("HIGH waiting for mutex at priority 1\n");
-  if (!artos_mutex_lock(mutex, RTOS_DELAY_INFINITY)) {
+  if (!artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
     for (;;) {
     }
   }
@@ -93,11 +93,11 @@ static void high_task(void *argument) {
   (void)artos_mutex_unlock(mutex);
 
   for (;;)
-    artos_wait(RTOS_DELAY_INFINITY);
+    artos_wait(ARTOS_DELAY_INFINITY);
 }
 
-static void create_task_or_halt(rtos_task_fn_t entry, artos_stack_word_t *stack,
-                                uint8_t priority) {
+static void create_task_or_halt(artos_task_fn_t entry,
+                                artos_stack_word_t *stack, uint8_t priority) {
   if (artos_task_create(entry, NULL, stack, TASK_STACK_WORDS, priority) !=
       ARTOS_OK) {
     for (;;) {
@@ -107,7 +107,7 @@ static void create_task_or_halt(rtos_task_fn_t entry, artos_stack_word_t *stack,
 
 int main(void) {
   demo_board_init();
-  rtos_init();
+  artos_init();
 
   mutex = artos_mutex_init(&mutex_storage);
   if (mutex == NULL) {

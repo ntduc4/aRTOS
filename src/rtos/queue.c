@@ -64,10 +64,10 @@ bool artos_queue_enqueue(artos_queue_t *q, uint8_t *data,
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   rtos_queue_assert_valid(q);
 
-  uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
-                           ? RTOS_DELAY_INFINITY
+  uint32_t wake_tick = tick_timeout == ARTOS_DELAY_INFINITY
+                           ? ARTOS_DELAY_INFINITY
                            : tick_timeout + rtos_current_tick();
-  bool infinity = tick_timeout == RTOS_DELAY_INFINITY;
+  bool infinity = tick_timeout == ARTOS_DELAY_INFINITY;
 
   // Guard from isr dequeuing before task
   while (q->count == q->capacity) {
@@ -119,10 +119,10 @@ bool artos_queue_dequeue(artos_queue_t *q, uint8_t *dst,
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
   rtos_queue_assert_valid(q);
 
-  uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
-                           ? RTOS_DELAY_INFINITY
+  uint32_t wake_tick = tick_timeout == ARTOS_DELAY_INFINITY
+                           ? ARTOS_DELAY_INFINITY
                            : tick_timeout + rtos_current_tick();
-  bool infinity = tick_timeout == RTOS_DELAY_INFINITY;
+  bool infinity = tick_timeout == ARTOS_DELAY_INFINITY;
 
   // Guard from isr enqueuing before task
   while (q->count == 0) {

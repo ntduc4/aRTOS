@@ -19,7 +19,7 @@ typedef struct {
   uint32_t line;
   uint32_t tick;
 
-  rtos_task_fn_t task_entry;
+  artos_task_fn_t task_entry;
   uint8_t base_priority;
   uint8_t effective_priority;
 

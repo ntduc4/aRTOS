@@ -4,7 +4,7 @@
 #include "rtos.h"
 
 artos_stack_word_t *rtos_port_initialize_stack(artos_stack_word_t *stack_top,
-                                               rtos_task_fn_t entry,
+                                               artos_task_fn_t entry,
                                                void *argument);
 
 // Arch-specific setup (making PendSV lowest priority exception on cortex-m4)

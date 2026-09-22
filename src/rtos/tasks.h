@@ -22,7 +22,7 @@ typedef struct {
   artos_stack_word_t *stack_buffer;
   uint32_t stack_word_count;
 
-  rtos_task_fn_t entry;
+  artos_task_fn_t entry;
   void *argument;
 
   uint8_t priority;

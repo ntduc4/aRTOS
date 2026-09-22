@@ -22,24 +22,24 @@
  * @param ms Duration in milliseconds.
  * @return Duration converted using RTOS_TICK_HZ, rounded down.
  */
-#define RTOS_MS_TO_TICKS(ms)                                                   \
-  ((uint32_t)(((uint64_t)(ms) * (uint64_t)RTOS_TICK_HZ) / 1000U))
+#define ARTOS_MS_TO_TICKS(ms)                                                  \
+  ((uint32_t)(((uint64_t)(ms) * (uint64_t)ARTOS_TICK_HZ) / 1000U))
 
 /** @brief Timeout value that represents an infinite wait. */
-#define RTOS_DELAY_INFINITY 0xFFFFFFFFU
+#define ARTOS_DELAY_INFINITY 0xFFFFFFFFU
 
 /**
  * @brief Task entry-point function type.
  * @param argument Application argument supplied when the task is created.
  * @note Task entry functions must not return.
  */
-typedef void (*rtos_task_fn_t)(void *argument);
+typedef void (*artos_task_fn_t)(void *argument);
 
 /**
  * @brief Initialize the kernel and architecture port.
  * @note Call once before creating tasks or starting the scheduler.
  */
-void rtos_init(void);
+void artos_init(void);
 
 // =========================
 //           Tasks
@@ -52,7 +52,7 @@ typedef enum {
   ARTOS_ERROR_TASK_LIMIT,
   ARTOS_ERROR_STACK_TOO_SMALL,
   ARTOS_ERROR_NO_TASKS
-} rtos_status_t;
+} artos_status_t;
 
 /** @brief Native stack word type used by the active architecture port. */
 typedef uintptr_t artos_stack_word_t;
@@ -82,16 +82,16 @@ typedef uintptr_t artos_stack_word_t;
  *       calling task. Equal- and lower-priority tasks become ready without an
  *       immediate context switch.
  */
-rtos_status_t artos_task_create(rtos_task_fn_t entry, void *argument,
-                                artos_stack_word_t *stack,
-                                uint32_t stack_word_count, uint8_t priority);
+artos_status_t artos_task_create(artos_task_fn_t entry, void *argument,
+                                 artos_stack_word_t *stack,
+                                 uint32_t stack_word_count, uint8_t priority);
 
 /**
  * @brief Start scheduling with the highest-priority created task.
  * @return RTOS_ERROR_NO_TASKS if no user task has been created.
  * @note A successful call does not return.
  */
-rtos_status_t artos_start(void);
+artos_status_t artos_start(void);
 
 /**
  * @brief Voluntarily yield the processor from task context.
@@ -206,8 +206,8 @@ artos_binary_semaphore_init(artos_semaphore_storage_t *storage,
  *          initialization.
  */
 artos_semaphore_t *
-rtos_counting_semaphore_init(artos_semaphore_storage_t *storage,
-                             uint32_t max_count, uint32_t initial_count);
+artos_counting_semaphore_init(artos_semaphore_storage_t *storage,
+                              uint32_t max_count, uint32_t initial_count);
 
 /**
  * @brief Take one semaphore token, optionally blocking until one is available.

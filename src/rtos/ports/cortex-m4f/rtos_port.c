@@ -14,7 +14,7 @@ _Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
 #error "Cortex-M4F port requires single-precision floating-point support"
 #endif
 
-#if RTOS_TICK_HZ == 0U
+#if ARTOS_TICK_HZ == 0U
 #error "RTOS_TICK_HZ must be greater than zero"
 #endif
 
@@ -22,7 +22,7 @@ _Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
 #error "SysTick frequency exceeds CPU clock"
 #endif
 
-#if (ARTOS_CPU_CLOCK_HZ / RTOS_TICK_HZ) > 0x1000000UL
+#if (ARTOS_CPU_CLOCK_HZ / ARTOS_TICK_HZ) > 0x1000000UL
 #error "SysTick reload exceeds 24 bits"
 #endif
 
@@ -95,7 +95,7 @@ void rtos_port_exit_critical(rtos_port_irq_state_t previous_state) {
 inline static void rtos_port_tick_init(void) {
   // Copied from SysTick_Config() from "core_cm4"
   // Check 4.5 programming manual also
-  ARTOS_SysTick_LOAD = (uint32_t)(ARTOS_CPU_CLOCK_HZ / RTOS_TICK_HZ) -
+  ARTOS_SysTick_LOAD = (uint32_t)(ARTOS_CPU_CLOCK_HZ / ARTOS_TICK_HZ) -
                        1U;            /* set reload register */
   ARTOS_SCB_SHPR3 &= ~(0xFFU << 24U); // Check 4.4.8 programming manual
   ARTOS_SCB_SHPR3 |= 14U << 28;       // Check 4.4.8 programming manual
@@ -104,7 +104,7 @@ inline static void rtos_port_tick_init(void) {
 }
 
 artos_stack_word_t *rtos_port_initialize_stack(artos_stack_word_t *stack_top,
-                                               rtos_task_fn_t entry,
+                                               artos_task_fn_t entry,
                                                void *argument) {
   // Auto saved registers
   *(--stack_top) = RTOS_PORT_INITIAL_XPSR;                // xPSR register;

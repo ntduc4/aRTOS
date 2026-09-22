@@ -70,8 +70,8 @@ bool artos_mutex_lock(artos_mutex_t *mutex, uint32_t tick_timeout) {
     return false;
   }
 
-  if (tick_timeout == RTOS_DELAY_INFINITY) {
-    rtos_block_current_task(RTOS_DELAY_INFINITY, &mutex->lock_list, true);
+  if (tick_timeout == ARTOS_DELAY_INFINITY) {
+    rtos_block_current_task(ARTOS_DELAY_INFINITY, &mutex->lock_list, true);
   } else {
     rtos_block_current_task(tick_timeout + rtos_current_tick(),
                             &mutex->lock_list, false);
