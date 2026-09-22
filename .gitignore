@@ -1,3 +1,4 @@
 .pio
+/build/
 selfnote.md
 compile_commands.json

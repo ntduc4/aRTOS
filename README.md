@@ -5,16 +5,14 @@ amount of port-specific assembly.** It demonstrates the mechanics behind task
 scheduling, context switching, blocking, synchronization, and interrupt-safe
 communication on real microcontrollers.
 
-The repository currently provides one Cortex-M4F port, tailored to the
-STM32F446RE and demonstrated on the Nucleo-F446RE board. Additional boards and
-architectures can be supported by implementing the port interface and supplying
-the required board startup and peripheral integration. Every task stack, task
-control block, semaphore, queue control block, and queue buffer has fixed
-storage. The kernel never calls `malloc`, `calloc`, or `free`, so memory usage
-is explicit and bounded before the scheduler starts.
-
-> aRTOS is an educational and portfolio project. It is not currently intended
-> for safety-critical or production deployment.
+The repository currently provides a device-header-independent Cortex-M4F port,
+demonstrated on the STM32F446RE and Nucleo-F446RE board. Another Cortex-M4F
+device can reuse the port by supplying compatible startup code, vector-table
+entries, clock configuration, CMSIS compiler intrinsics, and build integration.
+Another architecture requires a new implementation of the port interface.
+Every task stack, task control block, semaphore, queue control block, and queue
+buffer has fixed storage. The kernel never calls `malloc`, `calloc`, or `free`,
+so memory usage is explicit and bounded before the scheduler starts.
 
 ## Highlights
 
@@ -30,7 +28,8 @@ is explicit and bounded before the scheduler starts.
 - Nonblocking queue and semaphore operations for interrupt handlers
 - Idle task using `WFI` when no user task is ready
 - HardFault capture for registers, fault status, and current task context
-- Integrated hardware showcase with GPIO, UART, EXTI, queues, and semaphores
+- Failure records for assertions, task returns, stack overflow, and port faults
+- Selectable showcase, priority-scheduling, and mutex-inheritance demos
 
 ## Static By Design
 
@@ -61,10 +60,11 @@ architecture port provides task stack initialization, critical sections,
 scheduler startup, context-switch requests, and exception handlers. Board code
 supplies clock and peripheral setup for the application.
 
-Only the Cortex-M4F port is implemented today. Its current reference target is
-the STM32F446RE, using CMSIS, SysTick, SVC, PendSV, and the hardware floating
-point context. Supporting another board requires adapting the architecture port
-where necessary and adding that board's build and hardware initialization.
+Only the Cortex-M4F port is implemented today. It uses ARM-defined System
+Control Space registers, CMSIS compiler intrinsics, SysTick, SVC, PendSV, and
+hardware floating-point context handling. It does not include an STM32 device
+header. The application configuration supplies the processor clock used by
+SysTick, while startup code supplies the exception vectors and device setup.
 
 ### Scheduling
 
@@ -284,10 +284,12 @@ pio run -e nucleo_f446re_priority
 pio run -e nucleo_f446re_mutex
 ```
 
-Flash it through the onboard ST-LINK:
+Flash a selected environment through the onboard ST-LINK:
 
 ```sh
 pio run -e nucleo_f446re -t upload
+pio run -e nucleo_f446re_priority -t upload
+pio run -e nucleo_f446re_mutex -t upload
 ```
 
 Open the UART output:
@@ -301,6 +303,18 @@ Start a debug session from the command line:
 ```sh
 pio debug -e nucleo_f446re --interface=gdb -- -x .pioinit
 ```
+
+## API Documentation
+
+The root `Doxyfile` generates HTML documentation for the public headers and uses
+this README as its landing page:
+
+```sh
+doxygen Doxyfile
+```
+
+Open `build/doxygen/html/index.html` after generation. Doxygen is a documentation
+tool dependency and is not installed automatically by PlatformIO.
 
 ## Minimal Application
 
@@ -355,15 +369,22 @@ Kernel configuration lives in `include/rtos_config.h`:
 | `RTOS_TICK_HZ` | `1000` | SysTick frequency and kernel time base |
 | `RTOS_PRIORITY_COUNT` | `2` | Number of task priority levels, from `0` through `RTOS_PRIORITY_COUNT - 1` |
 | `RTOS_MIN_STACK_WORDS` | `64` | Minimum accepted task stack size in machine words |
+| `ARTOS_CPU_CLOCK_HZ` | `16000000` | Processor clock used to calculate the SysTick reload value |
+| `ARTOS_ENABLE_ASSERTS` | `1` | Enables internal kernel invariant checks |
+| `ARTOS_DEBUG_BREAK_ON_FAILURE` | `1` | Executes a debugger breakpoint before halting on failure |
 
 Task stack tops must be 8-byte aligned. The current Cortex-M4F port saves the
 floating-point high registers when an extended exception frame is active.
+`ARTOS_CPU_CLOCK_HZ` must match the processor clock when `rtos_start()` is
+called. The configured clock divided by `RTOS_TICK_HZ` must fit the SysTick
+24-bit reload register.
 
 ## Project Layout
 
 ```text
 include/
   rtos.h                 Public kernel API and static storage types
+  rtos_diagnostics.h     Public task inspection API
   rtos_config.h          Compile-time kernel configuration
 src/
   demos/
@@ -382,7 +403,10 @@ src/
       cortex-m4f/
         rtos_port.c      Cortex-M4F context switching and exception handlers
 test/
+  test_kernel/           Deterministic list and nonblocking kernel API tests
+  test_kernel_runtime/   Live scheduling and synchronization tests
   test_rtos_port/        Unity tests for port-level stack initialization
+Doxyfile                 Public API documentation configuration
 TODO.md                  Milestones and planned work
 platformio.ini           PlatformIO build and test environments
 ```
@@ -399,14 +423,16 @@ Implemented:
 - Binary and counting semaphores
 - Bounded message queues
 - Task and ISR synchronization paths
-- Idle sleep and HardFault state capture
+- Task inspection and stack-bound diagnostics
+- Assertions, retained failure information, and HardFault state capture
+- Idle sleep through `WFI`
 
 Not yet implemented:
 
 - Configurable preemption and time-slicing policies
 - Recursive mutexes and transitive priority-inheritance propagation
-- Stack watermark and overflow detection
-- Task inspection APIs and production-level diagnostics
+- True historical stack-watermark reporting
+- Retained-record validity markers and production-level diagnostics
 - Additional architecture ports
 
 See `TODO.md` for the complete milestone history and roadmap.
