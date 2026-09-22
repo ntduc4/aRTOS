@@ -6,16 +6,47 @@
 #include "rtos/diagnostics.h"
 #include "rtos/tasks.h"
 #include "rtos_config.h"
-#include "stm32f446xx.h"
 
 _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
                "Cortex-M requires 32-bit stack words");
-#if (__FPU_USED != 1U)
-#error "Cortex-M4F port requires hardware floating-point support"
+
+#if !defined(__ARM_FP) || ((__ARM_FP & 0x04U) == 0U)
+#error "Cortex-M4F port requires single-precision floating-point support"
+#endif
+
+#if RTOS_TICK_HZ == 0U
+#error "RTOS_TICK_HZ must be greater than zero"
+#endif
+
+#if ARTOS_CPU_CLOCK_HZ < RTOS_TICK_HZ
+#error "SysTick frequency exceeds CPU clock"
+#endif
+
+#if (ARTOS_CPU_CLOCK_HZ / RTOS_TICK_HZ) > 0x1000000UL
+#error "SysTick reload exceeds 24 bits"
 #endif
 
 #define RTOS_PORT_INITIAL_XPSR (1UL << 24)
 #define RTOS_PORT_INITIAL_EXC_RETURN (0xFFFFFFFDU)
+
+#define ARTOS_SCS 0xE000E000UL
+
+#define ARTOS_SysTick (ARTOS_SCS + 0x0010UL)
+#define ARTOS_SysTick_CTRL (*(volatile uint32_t *)ARTOS_SysTick)
+#define ARTOS_SysTick_LOAD (*(volatile uint32_t *)(ARTOS_SysTick + 0x04UL))
+#define ARTOS_SysTick_VAL (*(volatile uint32_t *)(ARTOS_SysTick + 0x08UL))
+
+#define ARTOS_SCB (ARTOS_SCS + 0x0D00UL)
+#define ARTOS_SCB_ICSR (*(volatile uint32_t *)(ARTOS_SCB + 0x04UL))
+#define ARTOS_SCB_SHPR3 (*(volatile uint32_t *)(ARTOS_SCB + 0x20UL))
+#define ARTOS_SCB_CFSR (*(volatile uint32_t *)(ARTOS_SCB + 0x28UL))
+#define ARTOS_SCB_HFSR (*(volatile uint32_t *)(ARTOS_SCB + 0x2CUL))
+#define ARTOS_SCB_MMFAR (*(volatile uint32_t *)(ARTOS_SCB + 0x34UL))
+#define ARTOS_SCB_BFAR (*(volatile uint32_t *)(ARTOS_SCB + 0x38UL))
+#define ARTOS_SCB_CPACR (*(volatile uint32_t *)(ARTOS_SCB + 0x88UL))
+
+#define ARTOS_FPU (ARTOS_SCS + 0xF30UL)
+#define ARTOS_FPU_FPCCR (*(volatile uint32_t *)(ARTOS_FPU + 0x04UL))
 
 void __attribute__((noreturn)) rtos_port_halt(void) {
   __DSB();
@@ -64,13 +95,12 @@ void rtos_port_exit_critical(rtos_port_irq_state_t previous_state) {
 inline static void rtos_port_tick_init(void) {
   // Copied from SysTick_Config() from "core_cm4"
   // Check 4.5 programming manual also
-  SysTick->LOAD =
-      (uint32_t)(SystemCoreClock / RTOS_TICK_HZ) - 1U; /* set reload register */
-  NVIC_SetPriority(SysTick_IRQn, 14U); /* set Priority for Systick Interrupt */
-  SysTick->VAL = 0UL;                  /* Load the SysTick Counter Value */
-  SysTick->CTRL =
-      SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk |
-      SysTick_CTRL_ENABLE_Msk; /* Enable SysTick IRQ and SysTick Timer */
+  ARTOS_SysTick_LOAD = (uint32_t)(ARTOS_CPU_CLOCK_HZ / RTOS_TICK_HZ) -
+                       1U;            /* set reload register */
+  ARTOS_SCB_SHPR3 &= ~(0xFFU << 24U); // Check 4.4.8 programming manual
+  ARTOS_SCB_SHPR3 |= 14U << 28;       // Check 4.4.8 programming manual
+  ARTOS_SysTick_VAL = 0UL;            /* Load the SysTick Counter Value */
+  ARTOS_SysTick_CTRL = 0b111UL;       /* Enable SysTick IRQ and SysTick Timer */
 }
 
 rtos_stack_word_t *rtos_port_initialize_stack(rtos_stack_word_t *stack_top,
@@ -154,21 +184,22 @@ void PendSV_Handler(void) {
 }
 
 void rtos_port_scheduler_init(void) {
-  NVIC_SetPriority(PendSV_IRQn, 15U);
-  SCB->CPACR |= 0xFUL << 20;
+  ARTOS_SCB_SHPR3 &= ~(0xFFU << 16U); // Check 4.4.8 programming manual
+  ARTOS_SCB_SHPR3 |= 15U << 20;       // Check 4.4.8 programming manual
+  ARTOS_SCB_CPACR |= 0xFUL << 20;
   __DSB();
   __ISB();
-  FPU->FPCCR |= FPU_FPCCR_ASPEN_Msk | FPU_FPCCR_LSPEN_Msk;
+  ARTOS_FPU_FPCCR |= (0b11UL << 30);
 }
 
 void rtos_port_request_context_switch(void) {
-  SCB->ICSR = (1 << 28);
+  ARTOS_SCB_ICSR = (1 << 28);
   __DSB();
   __ISB();
 }
 
 void rtos_port_request_context_switch_from_isr(void) {
-  SCB->ICSR = (1 << 28);
+  ARTOS_SCB_ICSR = (1 << 28);
   __DSB();
   __ISB();
 }
@@ -199,10 +230,10 @@ void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return) {
   rtos_fault_info.xpsr = frame[7];
   rtos_fault_info.exc_return = exc_return;
 
-  rtos_fault_info.cfsr = SCB->CFSR;
-  rtos_fault_info.hfsr = SCB->HFSR;
-  rtos_fault_info.mmfar = SCB->MMFAR;
-  rtos_fault_info.bfar = SCB->BFAR;
+  rtos_fault_info.cfsr = ARTOS_SCB_CFSR;
+  rtos_fault_info.hfsr = ARTOS_SCB_HFSR;
+  rtos_fault_info.mmfar = ARTOS_SCB_MMFAR;
+  rtos_fault_info.bfar = ARTOS_SCB_BFAR;
 
   __DSB();
   rtos_record_failure(ARTOS_FAILURE_PORT_FAULT, NULL, 0);

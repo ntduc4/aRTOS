@@ -6,6 +6,7 @@
 #define RTOS_PRIORITY_COUNT 2U
 #define ARTOS_ENABLE_ASSERTS 1
 #define ARTOS_DEBUG_BREAK_ON_FAILURE 1
+#define ARTOS_CPU_CLOCK_HZ 16000000UL
 
 // Recommend to increase this to 128U if floating point is used
 // MUST BE MULTIPLE OF 8
