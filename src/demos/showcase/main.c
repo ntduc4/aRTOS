@@ -1,4 +1,5 @@
 #include "rtos.h"
+#include "demos/common/demo_board.h"
 #include "stm32f446xx.h"
 #include <stdint.h>
 
@@ -23,11 +24,6 @@ static rtos_stack_word_t button_logger_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 static rtos_stack_word_t load_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static rtos_stack_word_t broken_stack[TASK_STACK_WORDS]
-    __attribute__((aligned(8)));
-static rtos_stack_word_t overflow_stack[TASK_STACK_WORDS]
-    __attribute__((aligned(8)));
-
 typedef enum {
   DEMO_HEARTBEAT = 0,
   DEMO_BUTTON,
@@ -59,41 +55,7 @@ static uint32_t last_button_tick;
 static bool button_seen;
 static volatile uint32_t load_sink;
 
-void setup_gpio() {
-  // GPIOA clock enable (ref manual 6.3.10)
-  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-
-  // ref manual 7.4.1
-  GPIOA->MODER &= ~(0b11 << (5 * 2));
-  GPIOA->MODER |= (0b01 << (5 * 2));
-}
-
-void setup_USART2() {
-  // RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN; // For future DMA USART
-  // ref manual 6.3.10
-  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-  RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-
-  // PA2
-  GPIOA->MODER &= ~(0b11U << (2 * 2));
-  GPIOA->MODER |= (0b10U << (2 * 2)); // alternate mode
-
-  GPIOA->AFR[0] &= ~(0b1111U << (2 * 4));
-  GPIOA->AFR[0] |= (0b0111U << (2 * 4)); // AF7
-
-  // ref manual 25.6
-  USART2->CR1 &= ~USART_CR1_UE;
-  // 8 data bits, no parity, 1 stop bit, 16x oversampling
-  USART2->CR1 &= ~(USART_CR1_M | USART_CR1_PCE | USART_CR1_OVER8);
-  USART2->CR2 &= ~USART_CR2_STOP;
-  // Baud rate: 115200, -> BRR = 16 MHz / 115200 ~= 139;
-  USART2->BRR = 139U;
-  // Transmitter
-  USART2->CR1 |= USART_CR1_TE;
-  USART2->CR1 |= USART_CR1_UE;
-}
-
-void setup_button() {
+static void setup_button(void) {
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
   RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
 
@@ -137,54 +99,26 @@ void EXTI15_10_IRQHandler(void) {
     rtos_yield_from_isr();
 }
 
-void USART2_write_char(char c) {
-  while ((USART2->SR & USART_SR_TXE) == 0) {
-  }
-  USART2->DR = (uint8_t)c;
-}
-
-static void USART2_write_uint(uint32_t value) {
-  char buf[10];
-  uint32_t i = 0;
-  if (value == 0) {
-    USART2_write_char('0');
-    return;
-  }
-  while (value > 0) {
-    buf[i++] = (char)('0' + (value % 10));
-    value /= 10;
-  }
-  while (i > 0)
-    USART2_write_char(buf[--i]);
-}
-
-static void USART2_write_string(const char *text) {
-  while (*text)
-    USART2_write_char(*text++);
-}
-
 static void led_task(void *argument) {
-  // Blink
-  uint32_t next_run_ms = 0;
+  uint32_t next_run_tick = rtos_get_tick();
   for (;;) {
-    next_run_ms += 2000;
-    // Atomic write instead of using ODR (ref manual 7.3.5)
-    GPIOA->BSRR = 1 << 5;
+    next_run_tick += RTOS_MS_TO_TICKS(2000U);
+    demo_led_set(true);
     rtos_wait(500);
-    GPIOA->BSRR = 1 << (5 + 16);
+    demo_led_set(false);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << 5;
+    demo_led_set(true);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << (5 + 16);
+    demo_led_set(false);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << 5;
+    demo_led_set(true);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << (5 + 16);
+    demo_led_set(false);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << 5;
+    demo_led_set(true);
     rtos_wait(100);
-    GPIOA->BSRR = 1 << (5 + 16);
-    rtos_wait_until(RTOS_MS_TO_TICKS(next_run_ms));
+    demo_led_set(false);
+    rtos_wait_until(next_run_tick);
   }
 }
 
@@ -206,33 +140,33 @@ static void logger_task(void *argument) {
     if (!rtos_queue_dequeue(queue, (uint8_t *)&message,
                             RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
       rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
-      USART2_write_char('C');
-      USART2_write_uint(consumer->id);
-      USART2_write_string("\tNONE\t\t#NONE\t@");
-      USART2_write_uint(rtos_get_tick());
-      USART2_write_string("\ttimeout=");
-      USART2_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
-      USART2_write_char('\n');
+      demo_uart_write_char('C');
+      demo_uart_write_uint(consumer->id);
+      demo_uart_write_string("\tNONE\t\t#NONE\t@");
+      demo_uart_write_uint(rtos_get_tick());
+      demo_uart_write_string("\ttimeout=");
+      demo_uart_write_uint(RTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
+      demo_uart_write_char('\n');
       rtos_semaphore_signal(uart_lock);
       continue;
     }
 
     uint32_t received_tick = rtos_get_tick();
     rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
-    USART2_write_char('C');
-    USART2_write_uint(consumer->id);
-    USART2_write_char('\t');
-    USART2_write_string(message.event == DEMO_HEARTBEAT ? "HEARTBEAT"
-                                                        : "BUTTON");
-    USART2_write_string("\t#");
-    USART2_write_uint(message.sequence);
-    USART2_write_string("\tcreated=@");
-    USART2_write_uint(message.created_tick);
-    USART2_write_string("\treceived=@");
-    USART2_write_uint(received_tick);
-    USART2_write_string("\tage=");
-    USART2_write_uint(received_tick - message.created_tick);
-    USART2_write_char('\n');
+    demo_uart_write_char('C');
+    demo_uart_write_uint(consumer->id);
+    demo_uart_write_char('\t');
+    demo_uart_write_string(message.event == DEMO_HEARTBEAT ? "HEARTBEAT"
+                                                            : "BUTTON");
+    demo_uart_write_string("\t#");
+    demo_uart_write_uint(message.sequence);
+    demo_uart_write_string("\tcreated=@");
+    demo_uart_write_uint(message.created_tick);
+    demo_uart_write_string("\treceived=@");
+    demo_uart_write_uint(received_tick);
+    demo_uart_write_string("\tage=");
+    demo_uart_write_uint(received_tick - message.created_tick);
+    demo_uart_write_char('\n');
     rtos_semaphore_signal(uart_lock);
     rtos_wait(RTOS_MS_TO_TICKS(consumer->delay_ms));
   }
@@ -247,15 +181,15 @@ static void button_logger_task(void *argument) {
 
     uint32_t received_tick = rtos_get_tick();
     rtos_semaphore_take(uart_lock, RTOS_DELAY_INFINITY);
-    USART2_write_string("BUTTON-ONLY\tBUTTON\t#");
-    USART2_write_uint(message.sequence);
-    USART2_write_string("\tcreated=@");
-    USART2_write_uint(message.created_tick);
-    USART2_write_string("\treceived=@");
-    USART2_write_uint(received_tick);
-    USART2_write_string("\tage=");
-    USART2_write_uint(received_tick - message.created_tick);
-    USART2_write_char('\n');
+    demo_uart_write_string("BUTTON-ONLY\tBUTTON\t#");
+    demo_uart_write_uint(message.sequence);
+    demo_uart_write_string("\tcreated=@");
+    demo_uart_write_uint(message.created_tick);
+    demo_uart_write_string("\treceived=@");
+    demo_uart_write_uint(received_tick);
+    demo_uart_write_string("\tage=");
+    demo_uart_write_uint(received_tick - message.created_tick);
+    demo_uart_write_char('\n');
     rtos_semaphore_signal(uart_lock);
   }
 }
@@ -270,30 +204,8 @@ static void load_task(void *argument) {
   }
 }
 
-static void broken_task(void *argument) {}
-
-__attribute__((noinline)) static void force_overflow(uint32_t depth) {
-  volatile uint32_t frame[16];
-
-  for (uint32_t i = 0; i < 16U; i++) {
-    frame[i] = depth + i;
-  }
-
-  rtos_wait(1);
-  force_overflow(depth + 1);
-
-  if (frame[0] == UINT32_MAX)
-    load_sink = frame[1];
-}
-
-static void overflow_task(void *argument) {
-  force_overflow(0);
-  rtos_wait(RTOS_DELAY_INFINITY);
-}
-
-int main() {
-  setup_gpio();
-  setup_USART2();
+int main(void) {
+  demo_board_init();
 
   rtos_init();
 
@@ -306,11 +218,11 @@ int main() {
   if (uart_lock == NULL || queue == NULL || button_queue == NULL)
     for (;;) {
     }
-  USART2_write_string(
+  demo_uart_write_string(
       "aRTOS showcase: 0.5 Hz heartbeat + button -> shared C1-C3 queue\n");
-  USART2_write_string(
+  demo_uart_write_string(
       "Button events are also copied to the immediate BUTTON-ONLY queue.\n");
-  USART2_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
+  demo_uart_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
 
   rtos_status_t status1 = rtos_task_create(led_task, NULL, led_stack,
                                            TASK_STACK_WORDS, DEFAULT_PRIORITY);
@@ -339,16 +251,6 @@ int main() {
                        DEFAULT_PRIORITY) != RTOS_OK)
     for (;;) {
     }
-
-  // if (rtos_task_create(broken_task, NULL, broken_stack, TASK_STACK_WORDS,
-  //                      DEFAULT_PRIORITY) != RTOS_OK)
-  //   for (;;) {
-  //   }
-
-  // if (rtos_task_create(overflow_task, NULL, overflow_stack, TASK_STACK_WORDS,
-  //                      DEFAULT_PRIORITY) != RTOS_OK)
-  //   for (;;) {
-  //   }
 
   setup_button();
   rtos_start();

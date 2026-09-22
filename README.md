@@ -211,9 +211,17 @@ The wake pointer is optional. Passing `NULL` performs the operation without
 reporting whether scheduling should be requested. Equal- and lower-priority
 waiters still become ready, but they do not set the wake flag.
 
-## Showcase Application
+## Demo Applications
 
-`src/main.c` runs a hardware demonstration on the Nucleo-F446RE:
+Three selectable demos run on the Nucleo-F446RE:
+
+| Environment | Source | Demonstrates |
+| --- | --- | --- |
+| `nucleo_f446re` | `src/demos/showcase/main.c` | Tasks, waits, queues, semaphores, ISR wakeups, and equal-priority scheduling |
+| `nucleo_f446re_priority` | `src/demos/priority/main.c` | Round-robin workers and strict higher-priority preemption |
+| `nucleo_f446re_mutex` | `src/demos/mutex/main.c` | Mutex ownership, direct handoff, and priority inheritance |
+
+The showcase demo runs this hardware demonstration:
 
 ```text
 SysTick -> preemptive fixed-priority scheduler
@@ -267,6 +275,13 @@ Clone the project and build the firmware:
 
 ```sh
 pio run -e nucleo_f446re
+```
+
+Select a focused demo by changing the environment:
+
+```sh
+pio run -e nucleo_f446re_priority
+pio run -e nucleo_f446re_mutex
 ```
 
 Flash it through the onboard ST-LINK:
@@ -351,7 +366,11 @@ include/
   rtos.h                 Public kernel API and static storage types
   rtos_config.h          Compile-time kernel configuration
 src/
-  main.c                 Nucleo-F446RE showcase application
+  demos/
+    common/              Shared Nucleo LED and USART helpers
+    showcase/main.c      Full queue, semaphore, ISR, and timing demo
+    priority/main.c      Fixed-priority scheduling demo
+    mutex/main.c         Priority-inheritance mutex demo
   rtos/
     tasks.c              Task lifecycle, scheduler, delays, and tick handling
     list.c               Intrusive list implementation
@@ -360,7 +379,8 @@ src/
     mutex.c              Nonrecursive mutexes and priority inheritance
     rtos.c               Public kernel entry points
     ports/
-      rtos_port.c        Cortex-M4F context switching and exception handlers
+      cortex-m4f/
+        rtos_port.c      Cortex-M4F context switching and exception handlers
 test/
   test_rtos_port/        Unity tests for port-level stack initialization
 TODO.md                  Milestones and planned work

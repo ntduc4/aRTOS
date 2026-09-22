@@ -55,13 +55,13 @@
 - [x] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
 - [x] Add optional O(1) selection via ready mask + count-leading-zeros instead of a flat scan `[S]`
 - [x] Integrate priorities with blocking and synchronization wake-ups `[S]`
-- [ ] Demonstrate high-, medium-, and low-priority task behavior `[S]`
+- [x] Demonstrate strict priority preemption and equal-priority round-robin behavior `[S]`
 
 ## Week 10: Optional Mutex
 - [x] Implement mutex init, lock, and unlock with ownership enforcement `[S]`
 - [x] Implement simplified priority inheritance for tasks blocked on a mutex `[S]`
 - [x] Ensure mutex operations are preemption-safe and task-only `[S]`
-- [ ] Demonstrate a mutex guarding a shared resource between tasks `[S]`
+- [x] Demonstrate mutex handoff and priority inheritance between tasks `[S]`
 
 ## Week 11: Debugging and Stability
 - [x] Add task inspection and diagnostic output `[S]`
