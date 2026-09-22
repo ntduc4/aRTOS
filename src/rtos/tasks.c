@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "rtos.h"
+#include "rtos/artos_assert.h"
 #include "rtos/list.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos_config.h"
@@ -54,14 +55,30 @@ rtos_check_preemptable_task(rtos_tcb_t *task_compare) {
 }
 
 static rtos_tcb_t *rtos_get_highest_prio_task() {
+  ARTOS_ASSERT(_ready_bitmap != 0U);
+
   if (_ready_bitmap == 0)
     return NULL;
   uint8_t highest_prio = rtos_port_find_msb32(_ready_bitmap);
+
+  ARTOS_ASSERT(highest_prio < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(_ready_l[highest_prio].count > 0U);
+  ARTOS_ASSERT(_ready_l[highest_prio].sentinel.next->owner != NULL);
+
   rtos_list_t *ready_l = &_ready_l[highest_prio];
   rtos_tcb_t *task = ready_l->sentinel.next->owner;
+
+  ARTOS_ASSERT(task != NULL);
+  ARTOS_ASSERT(task->effective_priority == highest_prio);
+  ARTOS_ASSERT(task->state_item.container == ready_l);
+
   rtos_list_remove(&task->state_item);
   if (ready_l->count == 0)
     _ready_bitmap &= ~(0x1U << highest_prio);
+
+  ARTOS_ASSERT(((_ready_bitmap & (1UL << highest_prio)) != 0U) ==
+               (ready_l->count != 0U));
+
   return task;
 }
 
@@ -193,6 +210,10 @@ rtos_scheduler_switch_context(rtos_stack_word_t *current_stack_pointer) {
 
 void rtos_block_current_task(uint32_t wake_tick, rtos_list_t *wait_obj,
                              bool infinite) {
+  ARTOS_ASSERT(_cur_task != NULL);
+  ARTOS_ASSERT(_cur_task != &idle_task);
+  ARTOS_ASSERT(_cur_task->state_item.container == NULL);
+  ARTOS_ASSERT(_cur_task->event_item.container == NULL);
   // No cur_task (just started) or cur task already blocked
   if (_cur_task == NULL || _cur_task->state_item.container != NULL)
     return;
@@ -223,7 +244,8 @@ void rtos_unblock_task(rtos_list_item_t *task_item, rtos_wait_reason_t reason) {
   if (tsk_state_l == &_delayed_l || tsk_state_l == &_delayed_overflow_l ||
       tsk_state_l == &_suspend_l) {
     rtos_list_remove(&task->state_item);
-    rtos_list_remove(&task->event_item);
+    if (task->event_item.container != NULL)
+      rtos_list_remove(&task->event_item);
     rtos_insert_ready_list(task);
     task->wait_reason = reason;
   }
@@ -289,6 +311,12 @@ void rtos_decrement_mutex_count(rtos_tcb_t *task) {
 
 static bool rtos_set_effective_priority(rtos_tcb_t *task,
                                         uint8_t new_priority) {
+  ARTOS_ASSERT(task != NULL);
+  ARTOS_ASSERT(task->priority < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(task->effective_priority < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(new_priority < RTOS_PRIORITY_COUNT);
+  ARTOS_ASSERT(new_priority >= task->priority);
+
   if (task == NULL || task->effective_priority == new_priority ||
       task->priority > new_priority || new_priority >= RTOS_PRIORITY_COUNT)
     return false;

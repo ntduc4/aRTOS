@@ -1,6 +1,7 @@
 #include "rtos.h"
 
 #include "list.h"
+#include "rtos/artos_assert.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos/tasks.h"
 #include <string.h>
@@ -44,11 +45,22 @@ rtos_queue_t *rtos_queue_init(rtos_queue_control_storage_t *control,
   return q;
 }
 
+static void rtos_queue_assert_valid(const rtos_queue_t *q) {
+  ARTOS_ASSERT(q != NULL);
+  ARTOS_ASSERT(q->capacity > 0U);
+  ARTOS_ASSERT(q->item_size > 0U);
+  ARTOS_ASSERT(q->storage != NULL);
+  ARTOS_ASSERT(q->count <= q->capacity);
+  ARTOS_ASSERT(q->read_index < q->capacity);
+  ARTOS_ASSERT(q->write_index < q->capacity);
+}
+
 bool rtos_queue_enqueue(rtos_queue_t *q, uint8_t *data, uint32_t tick_timeout) {
   if (q == NULL || data == NULL)
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  rtos_queue_assert_valid(q);
 
   uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
                            ? RTOS_DELAY_INFINITY
@@ -102,6 +114,7 @@ bool rtos_queue_dequeue(rtos_queue_t *q, uint8_t *dst, uint32_t tick_timeout) {
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  rtos_queue_assert_valid(q);
 
   uint32_t wake_tick = tick_timeout == RTOS_DELAY_INFINITY
                            ? RTOS_DELAY_INFINITY
@@ -155,6 +168,7 @@ bool rtos_queue_enqueue_from_isr(rtos_queue_t *q, uint8_t *data,
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  rtos_queue_assert_valid(q);
 
   if (q->count == q->capacity) {
     rtos_port_exit_critical(prev_state);
@@ -183,6 +197,7 @@ bool rtos_queue_dequeue_from_isr(rtos_queue_t *q, uint8_t *dst,
     return false;
 
   rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  rtos_queue_assert_valid(q);
 
   if (q->count == 0) {
     rtos_port_exit_critical(prev_state);

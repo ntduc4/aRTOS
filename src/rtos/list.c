@@ -1,4 +1,5 @@
 #include "list.h"
+#include "rtos/artos_assert.h"
 #include <stddef.h>
 
 void rtos_init_list(rtos_list_t *list) {
@@ -26,6 +27,15 @@ void rtos_init_list_item(rtos_list_item_t *item, void *owner) {
 }
 
 void rtos_list_append(rtos_list_item_t *dst, rtos_list_item_t *item) {
+  ARTOS_ASSERT(item != NULL);
+  ARTOS_ASSERT(item->container == NULL);
+  ARTOS_ASSERT(item->owner != NULL);
+
+  ARTOS_ASSERT(dst != NULL);
+  ARTOS_ASSERT(dst->container != NULL);
+  ARTOS_ASSERT(dst->next != NULL);
+  ARTOS_ASSERT(dst->next->prev == dst);
+
   if (dst == NULL || item == NULL || dst->container == NULL ||
       item->container != NULL)
     return;
@@ -42,6 +52,15 @@ void rtos_list_append(rtos_list_item_t *dst, rtos_list_item_t *item) {
 }
 
 void rtos_list_prepend(rtos_list_item_t *dst, rtos_list_item_t *item) {
+  ARTOS_ASSERT(item != NULL);
+  ARTOS_ASSERT(item->container == NULL);
+  ARTOS_ASSERT(item->owner != NULL);
+
+  ARTOS_ASSERT(dst != NULL);
+  ARTOS_ASSERT(dst->container != NULL);
+  ARTOS_ASSERT(dst->prev != NULL);
+  ARTOS_ASSERT(dst->prev->next == dst);
+
   if (dst == NULL || item == NULL || dst->container == NULL ||
       item->container != NULL)
     return;
@@ -58,6 +77,15 @@ void rtos_list_prepend(rtos_list_item_t *dst, rtos_list_item_t *item) {
 }
 
 void rtos_list_remove(rtos_list_item_t *item) {
+  ARTOS_ASSERT(item != NULL);
+  ARTOS_ASSERT(item->container != NULL);
+  ARTOS_ASSERT(item->next != NULL);
+  ARTOS_ASSERT(item->prev != NULL);
+  ARTOS_ASSERT(item->next->prev == item);
+  ARTOS_ASSERT(item->prev->next == item);
+  ARTOS_ASSERT(item->container->count > 0U);
+  ARTOS_ASSERT(&item->container->sentinel != item);
+
   if (item == NULL || item->container == NULL || item->next == NULL ||
       item->prev == NULL || &item->container->sentinel == item)
     return;
@@ -80,6 +108,10 @@ void rtos_list_insert_end(rtos_list_t *list, rtos_list_item_t *item) {
 }
 
 void rtos_list_insert_sorted(rtos_list_t *list, rtos_list_item_t *item) {
+  ARTOS_ASSERT(item != NULL);
+  ARTOS_ASSERT(item->container == NULL);
+  ARTOS_ASSERT(item->owner != NULL);
+
   if (list == NULL || item == NULL || list->sentinel.next == NULL ||
       list->sentinel.prev == NULL || item->container != NULL)
     return;
@@ -94,6 +126,10 @@ void rtos_list_insert_sorted(rtos_list_t *list, rtos_list_item_t *item) {
 
 void rtos_list_insert_reversed_sorted(rtos_list_t *list,
                                       rtos_list_item_t *item) {
+  ARTOS_ASSERT(item != NULL);
+  ARTOS_ASSERT(item->container == NULL);
+  ARTOS_ASSERT(item->owner != NULL);
+
   if (list == NULL || item == NULL || list->sentinel.next == NULL ||
       list->sentinel.prev == NULL || item->container != NULL)
     return;
