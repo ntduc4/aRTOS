@@ -25,6 +25,8 @@ static rtos_stack_word_t load_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 static rtos_stack_word_t broken_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
+static rtos_stack_word_t overflow_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
 
 typedef enum {
   DEMO_HEARTBEAT = 0,
@@ -270,6 +272,25 @@ static void load_task(void *argument) {
 
 static void broken_task(void *argument) {}
 
+__attribute__((noinline)) static void force_overflow(uint32_t depth) {
+  volatile uint32_t frame[16];
+
+  for (uint32_t i = 0; i < 16U; i++) {
+    frame[i] = depth + i;
+  }
+
+  rtos_wait(1);
+  force_overflow(depth + 1);
+
+  if (frame[0] == UINT32_MAX)
+    load_sink = frame[1];
+}
+
+static void overflow_task(void *argument) {
+  force_overflow(0);
+  rtos_wait(RTOS_DELAY_INFINITY);
+}
+
 int main() {
   setup_gpio();
   setup_USART2();
@@ -320,6 +341,11 @@ int main() {
     }
 
   // if (rtos_task_create(broken_task, NULL, broken_stack, TASK_STACK_WORDS,
+  //                      DEFAULT_PRIORITY) != RTOS_OK)
+  //   for (;;) {
+  //   }
+
+  // if (rtos_task_create(overflow_task, NULL, overflow_stack, TASK_STACK_WORDS,
   //                      DEFAULT_PRIORITY) != RTOS_OK)
   //   for (;;) {
   //   }

@@ -2,6 +2,7 @@
 
 #include "rtos.h"
 #include "rtos/artos_assert.h"
+#include "rtos/diagnostics.h"
 #include "rtos/list.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos_config.h"
@@ -82,40 +83,14 @@ static rtos_tcb_t *rtos_get_highest_prio_task() {
   return task;
 }
 
-// Make sure to only call when context switch
-// Make sure to already in critical state
-static rtos_tcb_t *
-rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
-  // NULL ONLY VALID WHEN IT'S THE FIRST CALL (NO RUNNING TASK)
-  if (current_stack_pointer == NULL && _cur_task != NULL)
-    return NULL;
-
-  // Treat as start if NULL
-  if (current_stack_pointer == NULL) {
-    if (!rtos_check_runnable_task(NULL))
-      return NULL;
-
-    _cur_task = rtos_get_highest_prio_task();
-    return _cur_task;
-  }
-
-  _cur_task->stack_pointer = current_stack_pointer;
-  // Not idle task and not in another delayed/suspend list
-  if (_cur_task != &idle_task && _cur_task->state_item.container == NULL)
-    rtos_insert_ready_list(_cur_task);
-
-  // Return idle task as default if no task is schedulable
-  if (!rtos_check_runnable_task(NULL)) {
-    _cur_task = &idle_task;
-  } else {
-    _cur_task = rtos_get_highest_prio_task();
-  }
-  return _cur_task;
-};
-
 static inline void rtos_init_tcb(rtos_tcb_t *tcb, rtos_task_fn_t entry,
                                  void *argument, rtos_stack_word_t *stack,
                                  uint32_t stack_word_count, uint8_t priority) {
+  for (uint32_t i = ARTOS_STACK_GUARD_WORDS; i < stack_word_count; i++)
+    stack[i] = ARTOS_STACK_FILL_PATTERN;
+  for (uint32_t i = 0; i < ARTOS_STACK_GUARD_WORDS; i++)
+    stack[i] = ARTOS_STACK_GUARD_PATTERN;
+
   tcb->stack_pointer =
       rtos_port_initialize_stack(stack + stack_word_count, entry, argument);
   tcb->stack_buffer = stack;
@@ -190,6 +165,56 @@ void rtos_system_init(void) {
 
   rtos_port_scheduler_init();
 }
+
+static bool artos_task_stack_valid(const rtos_tcb_t *task,
+                                   const rtos_stack_word_t *saved_sp) {
+  const rtos_stack_word_t *low = task->stack_buffer + ARTOS_STACK_GUARD_WORDS;
+  const rtos_stack_word_t *high = task->stack_buffer + task->stack_word_count;
+
+  if (saved_sp < low || saved_sp > high)
+    return false;
+
+  for (uint32_t i = 0; i < ARTOS_STACK_GUARD_WORDS; i++)
+    if (task->stack_buffer[i] != ARTOS_STACK_GUARD_PATTERN)
+      return false;
+
+  return true;
+}
+
+// Make sure to only call when context switch
+// Make sure to already in critical state
+static rtos_tcb_t *
+rtos_scheduler_select_next(rtos_stack_word_t *current_stack_pointer) {
+  // NULL ONLY VALID WHEN IT'S THE FIRST CALL (NO RUNNING TASK)
+  if (current_stack_pointer == NULL && _cur_task != NULL)
+    return NULL;
+
+  // Treat as start if NULL
+  if (current_stack_pointer == NULL) {
+    if (!rtos_check_runnable_task(NULL))
+      return NULL;
+
+    _cur_task = rtos_get_highest_prio_task();
+    return _cur_task;
+  }
+
+  _cur_task->stack_pointer = current_stack_pointer;
+
+  if (!artos_task_stack_valid(_cur_task, current_stack_pointer))
+    rtos_record_failure(ARTOS_FAILURE_STACK_OVERFLOW, __FILE__, __LINE__);
+
+  // Not idle task and not in another delayed/suspend list
+  if (_cur_task != &idle_task && _cur_task->state_item.container == NULL)
+    rtos_insert_ready_list(_cur_task);
+
+  // Return idle task as default if no task is schedulable
+  if (!rtos_check_runnable_task(NULL)) {
+    _cur_task = &idle_task;
+  } else {
+    _cur_task = rtos_get_highest_prio_task();
+  }
+  return _cur_task;
+};
 
 rtos_tcb_t *rtos_scheduler_start(void) {
   return rtos_scheduler_select_next(NULL);

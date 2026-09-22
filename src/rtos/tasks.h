@@ -5,6 +5,10 @@
 #include "stddef.h"
 #include <stdbool.h>
 
+#define ARTOS_STACK_FILL_PATTERN 0xA5A5A5A5U
+#define ARTOS_STACK_GUARD_PATTERN 0xDEADBEEFU
+#define ARTOS_STACK_GUARD_WORDS 4U
+
 typedef enum {
   WAIT_NO_REASON = 0,
   WAIT_SIGNALED,
