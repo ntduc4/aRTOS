@@ -23,6 +23,8 @@ static rtos_stack_word_t button_logger_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 static rtos_stack_word_t load_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
+static rtos_stack_word_t broken_stack[TASK_STACK_WORDS]
+    __attribute__((aligned(8)));
 
 typedef enum {
   DEMO_HEARTBEAT = 0,
@@ -266,6 +268,8 @@ static void load_task(void *argument) {
   }
 }
 
+static void broken_task(void *argument) {}
+
 int main() {
   setup_gpio();
   setup_USART2();
@@ -314,6 +318,11 @@ int main() {
                        DEFAULT_PRIORITY) != RTOS_OK)
     for (;;) {
     }
+
+  // if (rtos_task_create(broken_task, NULL, broken_stack, TASK_STACK_WORDS,
+  //                      DEFAULT_PRIORITY) != RTOS_OK)
+  //   for (;;) {
+  //   }
 
   setup_button();
   rtos_start();

@@ -1,6 +1,7 @@
 #include "rtos.h"
 
 #include "list.h"
+#include "rtos/artos_assert.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos/tasks.h"
 
@@ -108,6 +109,7 @@ bool rtos_mutex_unlock(rtos_mutex_t *mutex) {
     return false;
   }
 
+  ARTOS_ASSERT(task->mutexes_held > 0U);
   rtos_decrement_mutex_count(task);
   bool prio_changed = rtos_priority_relinquish_after_unlock(task);
 

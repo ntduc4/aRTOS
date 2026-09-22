@@ -241,6 +241,11 @@ void rtos_unblock_task(rtos_list_item_t *task_item, rtos_wait_reason_t reason) {
 
   rtos_tcb_t *task = task_item->owner;
   rtos_list_t *tsk_state_l = task->state_item.container;
+
+  ARTOS_ASSERT(tsk_state_l == &_delayed_l ||
+               tsk_state_l == &_delayed_overflow_l ||
+               tsk_state_l == &_suspend_l);
+
   if (tsk_state_l == &_delayed_l || tsk_state_l == &_delayed_overflow_l ||
       tsk_state_l == &_suspend_l) {
     rtos_list_remove(&task->state_item);
