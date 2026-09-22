@@ -136,6 +136,12 @@ void rtos_wait_until(uint32_t wake_tick);
  */
 uint32_t rtos_get_tick(void);
 
+/**
+ * @brief Read current task count.
+ * @return Current task count.
+ */
+uint32_t artos_task_count(void);
+
 // =================================
 //           Dummy storage
 // =================================

@@ -4,6 +4,7 @@
 #include "rtos/list.h"
 #include "rtos/ports/rtos_port.h"
 #include "rtos_config.h"
+#include "rtos_diagnostics.h"
 #include "tasks.h"
 
 _Static_assert(RTOS_PRIORITY_COUNT <= 32,
@@ -339,4 +340,33 @@ bool rtos_priority_disinherit_after_timeout(rtos_tcb_t *task,
   if (new_priority < task->effective_priority)
     return rtos_set_effective_priority(task, new_priority);
   return false;
+}
+
+uint32_t artos_task_count(void) { return _tsk_cnt; }
+
+bool artos_task_get_info(uint32_t index, artos_task_info_t *info) {
+  if (index >= _tsk_cnt || _task_pool[index].entry == NULL || info == NULL)
+    return false;
+  rtos_port_irq_state_t prev_state = rtos_port_enter_critical();
+  rtos_tcb_t *task = &_task_pool[index];
+  info->entry = task->entry;
+  info->stack_word_count = task->stack_word_count;
+  info->base_priority = task->priority;
+  info->effective_priority = task->effective_priority;
+  info->stack_free_words =
+      (task->stack_pointer -
+       task->stack_buffer);        // TODO: Implement stack water mark later
+  info->stack_guard_valid = false; // TODO: Implement stack guard
+  info->mutexes_held = task->mutexes_held;
+  void *container = task->state_item.container;
+  if (container == NULL)
+    info->state = ARTOS_TASK_STATE_RUNNING;
+  else if (container == &_delayed_l || container == &_delayed_overflow_l)
+    info->state = ARTOS_TASK_STATE_BLOCKED;
+  else if (container == &_suspend_l)
+    info->state = ARTOS_TASK_STATE_SUSPENDED;
+  else
+    info->state = ARTOS_TASK_STATE_READY;
+  rtos_port_exit_critical(prev_state);
+  return true;
 }

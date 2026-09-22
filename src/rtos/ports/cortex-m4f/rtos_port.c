@@ -3,6 +3,7 @@
 
 #include "cmsis_gcc.h"
 #include "rtos.h"
+#include "rtos/diagnostics.h"
 #include "rtos/tasks.h"
 #include "rtos_config.h"
 #include "stm32f446xx.h"
@@ -16,13 +17,24 @@ _Static_assert(sizeof(rtos_stack_word_t) == sizeof(uint32_t),
 #define RTOS_PORT_INITIAL_XPSR (1UL << 24)
 #define RTOS_PORT_INITIAL_EXC_RETURN (0xFFFFFFFDU)
 
+void __attribute__((noreturn)) rtos_port_halt(void) {
+  __DSB();
+  __ISB();
+
+#if ARTOS_DEBUG_BREAK_ON_FAILURE
+  __BKPT(0);
+#endif
+
+  __disable_irq();
+  for (;;)
+    __WFI();
+}
+
 static void rtos_port_task_return_trap(void) __attribute__((noreturn));
 
 // Literally just a trap that do nothing
 static void rtos_port_task_return_trap(void) {
-  __disable_irq();
-  for (;;)
-    __WFI();
+  rtos_record_failure(ARTOS_FAILURE_TASK_RETURN, NULL, 0);
 }
 
 void rtos_port_idle_task(void *argument) {
@@ -167,15 +179,16 @@ struct rtos_fault_info {
   uint32_t r0, r1, r2, r3, r12, lr, pc, xpsr;
   uint32_t exc_return; // LR at fault entry
   uint32_t cfsr, hfsr, mmfar, bfar;
-  const rtos_tcb_t *task;
 };
 
-volatile rtos_fault_info_t rtos_fault_info;
+__attribute__((section(".noinit"))) volatile rtos_fault_info_t rtos_fault_info;
 
 void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return)
     __attribute__((noreturn));
 
 void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return) {
+  if ((exc_return & (1UL << 4)) == 0U)
+    frame += 18U;
   rtos_fault_info.r0 = frame[0];
   rtos_fault_info.r1 = frame[1];
   rtos_fault_info.r2 = frame[2];
@@ -191,13 +204,8 @@ void rtos_port_hard_fault_c(const uint32_t *frame, uint32_t exc_return) {
   rtos_fault_info.mmfar = SCB->MMFAR;
   rtos_fault_info.bfar = SCB->BFAR;
 
-  rtos_fault_info.task = rtos_scheduler_current_task();
-
   __DSB();
-  __disable_irq();
-  for (;;) {
-    __WFI();
-  }
+  rtos_record_failure(ARTOS_FAILURE_PORT_FAULT, NULL, 0);
 }
 
 void HardFault_Handler(void) __attribute__((naked));

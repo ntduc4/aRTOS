@@ -15,6 +15,7 @@ void rtos_port_request_context_switch(void);
 void rtos_port_request_context_switch_from_isr(void);
 uint8_t rtos_port_find_msb32(uint32_t bitmap);
 void rtos_port_idle_task(void *argument);
+void rtos_port_halt(void) __attribute__((noreturn));
 
 typedef uint32_t rtos_port_irq_state_t;
 

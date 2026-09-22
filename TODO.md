@@ -64,7 +64,7 @@
 - [ ] Demonstrate a mutex guarding a shared resource between tasks `[S]`
 
 ## Week 11: Debugging and Stability
-- [ ] Add task inspection and diagnostic output `[S]`
+- [x] Add task inspection and diagnostic output `[S]`
 - [ ] Add stack watermark and overflow detection `[S]`
 - [ ] Add kernel assertions and improve fault reporting `[S]`
 - [ ] Fix concurrency, context-switching, and timing defects found during testing `[C]`
