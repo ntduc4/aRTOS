@@ -15,7 +15,7 @@ _Static_assert(sizeof(artos_stack_word_t) == sizeof(uint32_t),
 #endif
 
 #if ARTOS_TICK_HZ == 0U
-#error "RTOS_TICK_HZ must be greater than zero"
+#error "ARTOS_TICK_HZ must be greater than zero"
 #endif
 
 #if ARTOS_CPU_CLOCK_HZ < ARTOS_TICK_HZ
