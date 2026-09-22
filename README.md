@@ -413,15 +413,31 @@ See `TODO.md` for the complete milestone history and roadmap.
 
 ## Tests
 
-The repository includes Unity-based target tests for Cortex-M stack-frame
-initialization. Run the configured test environment with:
+The repository includes Unity-based target tests for:
+
+- Intrusive-list ordering, stability, removal, and link maintenance
+- Queue initialization, FIFO wraparound, capacity, and ISR operations
+- Binary and counting semaphore bounds and ISR operations
+- Mutex initialization and task-context enforcement
+- Task argument validation, creation, inspection, and pool limits
+- Cortex-M initial stack-frame construction
+- On-target priority preemption, blocking wakeups, direct handoff, timeouts, and
+  mutex inheritance
+
+Build and run the configured test environment with:
 
 ```sh
 pio test -e nucleo_f446re_test
 ```
 
-Queue, semaphore, mutex, scheduler, and long-duration hardware coverage are
-planned as part of the stabilization work.
+Build the test firmware without uploading or running it with:
+
+```sh
+pio test -e nucleo_f446re_test --without-uploading --without-testing
+```
+
+The `test_kernel_runtime` suite exercises live context switching and therefore
+must run on the target rather than only being build-checked.
 
 ## License
 
