@@ -65,8 +65,8 @@
 
 ## Week 11: Debugging and Stability
 - [x] Add task inspection and diagnostic output `[S]`
-- [ ] Add stack watermark and overflow detection `[S]`
-- [ ] Add kernel assertions and improve fault reporting `[S]`
+- [x] Add stack watermark and overflow detection `[S]`
+- [x] Add kernel assertions and improve fault reporting `[S]`
 - [ ] Fix concurrency, context-switching, and timing defects found during testing `[C]`
 - [ ] Run the complete demo for at least 10 minutes without failure `[C]`
 
