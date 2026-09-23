@@ -1,4 +1,4 @@
-#include "demos/common/demo_board.h"
+#include "boards/board.h"
 #include "rtos.h"
 
 #include <stdint.h>
@@ -38,18 +38,18 @@ static void high_task(void *argument) {
 
   for (;;) {
     release_tick += ARTOS_MS_TO_TICKS(1000U);
-    demo_led_set(true);
+    board_led_set(true);
 
     uart_lock_take();
-    demo_uart_write_string("HIGH preempted low tasks at tick ");
-    demo_uart_write_uint(artos_get_tick());
-    demo_uart_write_string(", sequence ");
-    demo_uart_write_uint(++sequence);
-    demo_uart_write_char('\n');
+    board_uart_write_string("HIGH preempted low tasks at tick ");
+    board_uart_write_uint(artos_get_tick());
+    board_uart_write_string(", sequence ");
+    board_uart_write_uint(++sequence);
+    board_uart_write_char('\n');
     artos_semaphore_signal(uart_lock);
 
     artos_wait(ARTOS_MS_TO_TICKS(100U));
-    demo_led_set(false);
+    board_led_set(false);
     artos_wait_until(release_tick);
   }
 }
@@ -67,11 +67,11 @@ static void worker_task(void *argument) {
     if (++rounds == 100U) {
       rounds = 0U;
       uart_lock_take();
-      demo_uart_write_string("LOW ");
-      demo_uart_write_char(worker->name);
-      demo_uart_write_string(" ran, report ");
-      demo_uart_write_uint(++worker->reports);
-      demo_uart_write_char('\n');
+      board_uart_write_string("LOW ");
+      board_uart_write_char(worker->name);
+      board_uart_write_string(" ran, report ");
+      board_uart_write_uint(++worker->reports);
+      board_uart_write_char('\n');
       artos_semaphore_signal(uart_lock);
     }
 
@@ -89,7 +89,7 @@ static void create_task_or_halt(artos_task_fn_t entry, void *argument,
 }
 
 int main(void) {
-  demo_board_init();
+  board_init();
   artos_init();
 
   uart_lock = artos_binary_semaphore_init(&uart_lock_storage, true);
@@ -98,8 +98,8 @@ int main(void) {
     }
   }
 
-  demo_uart_write_string("aRTOS priority demo\n");
-  demo_uart_write_string("Two priority-0 tasks round-robin; priority 1 "
+  board_uart_write_string("aRTOS priority demo\n");
+  board_uart_write_string("Two priority-0 tasks round-robin; priority 1 "
                          "preempts them every second.\n");
 
   create_task_or_halt(worker_task, &worker_a, worker_a_stack, LOW_PRIORITY);

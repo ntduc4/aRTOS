@@ -213,13 +213,16 @@ waiters still become ready, but they do not set the wake flag.
 
 ## Demo Applications
 
-Three selectable demos run on the Nucleo-F446RE:
+Three selectable demos run on both supported boards:
 
 | Environment | Source | Demonstrates |
 | --- | --- | --- |
-| `nucleo_f446re` | `src/demos/showcase/main.c` | Tasks, waits, queues, semaphores, ISR wakeups, and equal-priority scheduling |
-| `nucleo_f446re_priority` | `src/demos/priority/main.c` | Round-robin workers and strict higher-priority preemption |
-| `nucleo_f446re_mutex` | `src/demos/mutex/main.c` | Mutex ownership, direct handoff, and priority inheritance |
+| `f446re` | `src/demos/showcase/main.c` | Tasks, waits, queues, semaphores, ISR wakeups, and equal-priority scheduling |
+| `f446re_priority` | `src/demos/priority/main.c` | Round-robin workers and strict higher-priority preemption |
+| `f446re_mutex` | `src/demos/mutex/main.c` | Mutex ownership, direct handoff, and priority inheritance |
+| `l4s5i` | `src/demos/showcase/main.c` | Full showcase on the B-L4S5I-IOT01A |
+| `l4s5i_priority` | `src/demos/priority/main.c` | Priority scheduling on the B-L4S5I-IOT01A |
+| `l4s5i_mutex` | `src/demos/mutex/main.c` | Mutex inheritance on the B-L4S5I-IOT01A |
 
 The showcase demo runs this hardware demonstration:
 
@@ -262,9 +265,15 @@ C1      HEARTBEAT       #1      created=@0      received=@0     age=0
 BUTTON-ONLY     BUTTON  #1      created=@1537   received=@1537  age=0
 ```
 
+The STM32L4S5I board implementation switches the B-L4S5I-IOT01A from its reset
+MSI clock to the 16 MHz HSI clock before starting the kernel, matching
+`ARTOS_CPU_CLOCK_HZ`. It uses the PA5 user LED and USART1 TX on PB6 through the
+ST-LINK virtual COM port at 115200 baud.
+
 ## Current Reference Target
 
 - Nucleo-F446RE development board
+- B-L4S5I-IOT01A Discovery kit for the STM32L4S5I environments
 - USB cable with access to the onboard ST-LINK interface
 - Python and PlatformIO Core, or Visual Studio Code with PlatformIO
 - A serial terminal capable of 115200 baud
@@ -274,22 +283,28 @@ BUTTON-ONLY     BUTTON  #1      created=@1537   received=@1537  age=0
 Clone the project and build the firmware:
 
 ```sh
-pio run -e nucleo_f446re
+pio run -e f446re
 ```
 
 Select a focused demo by changing the environment:
 
 ```sh
-pio run -e nucleo_f446re_priority
-pio run -e nucleo_f446re_mutex
+pio run -e f446re_priority
+pio run -e f446re_mutex
+pio run -e l4s5i
+pio run -e l4s5i_priority
+pio run -e l4s5i_mutex
 ```
 
 Flash a selected environment through the onboard ST-LINK:
 
 ```sh
-pio run -e nucleo_f446re -t upload
-pio run -e nucleo_f446re_priority -t upload
-pio run -e nucleo_f446re_mutex -t upload
+pio run -e f446re -t upload
+pio run -e f446re_priority -t upload
+pio run -e f446re_mutex -t upload
+pio run -e l4s5i -t upload
+pio run -e l4s5i_priority -t upload
+pio run -e l4s5i_mutex -t upload
 ```
 
 Open the UART output:
@@ -301,7 +316,7 @@ pio device monitor -b 115200
 Start a debug session from the command line:
 
 ```sh
-pio debug -e nucleo_f446re --interface=gdb -- -x .pioinit
+pio debug -e f446re --interface=gdb -- -x .pioinit
 ```
 
 ## API Documentation
@@ -387,8 +402,11 @@ include/
   rtos_diagnostics.h     Public task inspection API
   rtos_config.h          Compile-time kernel configuration
 src/
+  boards/
+    board.h              Board interface used by demo applications
+    f446re/board.c       Nucleo-F446RE LED and USART implementation
+    l4s5i/board.c        B-L4S5I-IOT01A clock, LED, and USART implementation
   demos/
-    common/              Shared Nucleo LED and USART helpers
     showcase/main.c      Full queue, semaphore, ISR, and timing demo
     priority/main.c      Fixed-priority scheduling demo
     mutex/main.c         Priority-inheritance mutex demo

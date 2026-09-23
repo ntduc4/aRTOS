@@ -1,11 +1,8 @@
-#include "demos/common/demo_board.h"
+#include "boards/board.h"
 #include "rtos.h"
-#include "stm32f446xx.h"
 #include <stdint.h>
 
 #define TASK_STACK_WORDS 128U
-#define BUTTON_PIN 13U
-#define BUTTON_MASK (1UL << BUTTON_PIN)
 #define QUEUE_CAPACITY 8U
 #define BUTTON_QUEUE_CAPACITY 4U
 #define HEARTBEAT_INTERVAL_MS 2000U
@@ -55,35 +52,7 @@ static uint32_t last_button_tick;
 static bool button_seen;
 static volatile uint32_t load_sink;
 
-static void setup_button(void) {
-  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
-  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-
-  // PC13 input with pull-up; the Nucleo user button is active-low.
-  GPIOC->MODER &= ~(0b11UL << (BUTTON_PIN * 2U));
-  GPIOC->PUPDR &= ~(0b11UL << (BUTTON_PIN * 2U));
-  GPIOC->PUPDR |= 0b01UL << (BUTTON_PIN * 2U);
-
-  // Route PC13 to EXTI13 (EXTICR4, port C = 0b0010).
-  SYSCFG->EXTICR[3] &= ~(0b1111UL << 4U);
-  SYSCFG->EXTICR[3] |= 0b0010UL << 4U;
-
-  EXTI->IMR &= ~BUTTON_MASK;
-  EXTI->RTSR &= ~BUTTON_MASK;
-  EXTI->FTSR |= BUTTON_MASK;
-  EXTI->PR = BUTTON_MASK;
-
-  NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-  NVIC_SetPriority(EXTI15_10_IRQn, 13U);
-  EXTI->IMR |= BUTTON_MASK;
-  NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
-
-void EXTI15_10_IRQHandler(void) {
-  if ((EXTI->PR & BUTTON_MASK) == 0U)
-    return;
-
-  EXTI->PR = BUTTON_MASK;
+static void button_event_isr(void) {
   uint32_t now = artos_get_tick();
   if (button_seen &&
       now - last_button_tick < ARTOS_MS_TO_TICKS(BUTTON_DEBOUNCE_MS))
@@ -103,21 +72,21 @@ static void led_task(void *argument) {
   uint32_t next_run_tick = artos_get_tick();
   for (;;) {
     next_run_tick += ARTOS_MS_TO_TICKS(2000U);
-    demo_led_set(true);
+    board_led_set(true);
     artos_wait(500);
-    demo_led_set(false);
+    board_led_set(false);
     artos_wait(100);
-    demo_led_set(true);
+    board_led_set(true);
     artos_wait(100);
-    demo_led_set(false);
+    board_led_set(false);
     artos_wait(100);
-    demo_led_set(true);
+    board_led_set(true);
     artos_wait(100);
-    demo_led_set(false);
+    board_led_set(false);
     artos_wait(100);
-    demo_led_set(true);
+    board_led_set(true);
     artos_wait(100);
-    demo_led_set(false);
+    board_led_set(false);
     artos_wait_until(next_run_tick);
   }
 }
@@ -140,33 +109,33 @@ static void logger_task(void *argument) {
     if (!artos_queue_dequeue(queue, (uint8_t *)&message,
                              ARTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS))) {
       artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
-      demo_uart_write_char('C');
-      demo_uart_write_uint(consumer->id);
-      demo_uart_write_string("\tNONE\t\t#NONE\t@");
-      demo_uart_write_uint(artos_get_tick());
-      demo_uart_write_string("\ttimeout=");
-      demo_uart_write_uint(ARTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
-      demo_uart_write_char('\n');
+      board_uart_write_char('C');
+      board_uart_write_uint(consumer->id);
+      board_uart_write_string("\tNONE\t\t#NONE\t@");
+      board_uart_write_uint(artos_get_tick());
+      board_uart_write_string("\ttimeout=");
+      board_uart_write_uint(ARTOS_MS_TO_TICKS(CONSUMER_TIMEOUT_MS));
+      board_uart_write_char('\n');
       artos_semaphore_signal(uart_lock);
       continue;
     }
 
     uint32_t received_tick = artos_get_tick();
     artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
-    demo_uart_write_char('C');
-    demo_uart_write_uint(consumer->id);
-    demo_uart_write_char('\t');
-    demo_uart_write_string(message.event == DEMO_HEARTBEAT ? "HEARTBEAT"
+    board_uart_write_char('C');
+    board_uart_write_uint(consumer->id);
+    board_uart_write_char('\t');
+    board_uart_write_string(message.event == DEMO_HEARTBEAT ? "HEARTBEAT"
                                                            : "BUTTON");
-    demo_uart_write_string("\t#");
-    demo_uart_write_uint(message.sequence);
-    demo_uart_write_string("\tcreated=@");
-    demo_uart_write_uint(message.created_tick);
-    demo_uart_write_string("\treceived=@");
-    demo_uart_write_uint(received_tick);
-    demo_uart_write_string("\tage=");
-    demo_uart_write_uint(received_tick - message.created_tick);
-    demo_uart_write_char('\n');
+    board_uart_write_string("\t#");
+    board_uart_write_uint(message.sequence);
+    board_uart_write_string("\tcreated=@");
+    board_uart_write_uint(message.created_tick);
+    board_uart_write_string("\treceived=@");
+    board_uart_write_uint(received_tick);
+    board_uart_write_string("\tage=");
+    board_uart_write_uint(received_tick - message.created_tick);
+    board_uart_write_char('\n');
     artos_semaphore_signal(uart_lock);
     artos_wait(ARTOS_MS_TO_TICKS(consumer->delay_ms));
   }
@@ -181,15 +150,15 @@ static void button_logger_task(void *argument) {
 
     uint32_t received_tick = artos_get_tick();
     artos_semaphore_take(uart_lock, ARTOS_DELAY_INFINITY);
-    demo_uart_write_string("BUTTON-ONLY\tBUTTON\t#");
-    demo_uart_write_uint(message.sequence);
-    demo_uart_write_string("\tcreated=@");
-    demo_uart_write_uint(message.created_tick);
-    demo_uart_write_string("\treceived=@");
-    demo_uart_write_uint(received_tick);
-    demo_uart_write_string("\tage=");
-    demo_uart_write_uint(received_tick - message.created_tick);
-    demo_uart_write_char('\n');
+    board_uart_write_string("BUTTON-ONLY\tBUTTON\t#");
+    board_uart_write_uint(message.sequence);
+    board_uart_write_string("\tcreated=@");
+    board_uart_write_uint(message.created_tick);
+    board_uart_write_string("\treceived=@");
+    board_uart_write_uint(received_tick);
+    board_uart_write_string("\tage=");
+    board_uart_write_uint(received_tick - message.created_tick);
+    board_uart_write_char('\n');
     artos_semaphore_signal(uart_lock);
   }
 }
@@ -205,7 +174,7 @@ static void load_task(void *argument) {
 }
 
 int main(void) {
-  demo_board_init();
+  board_init();
 
   artos_init();
 
@@ -218,11 +187,11 @@ int main(void) {
   if (uart_lock == NULL || queue == NULL || button_queue == NULL)
     for (;;) {
     }
-  demo_uart_write_string(
+  board_uart_write_string(
       "aRTOS showcase: 0.5 Hz heartbeat + button -> shared C1-C3 queue\n");
-  demo_uart_write_string(
+  board_uart_write_string(
       "Button events are also copied to the immediate BUTTON-ONLY queue.\n");
-  demo_uart_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
+  board_uart_write_string("TASK\tEVENT\t\tMSG\tCREATED\tRECEIVED\tDETAIL\n");
 
   artos_status_t status1 = artos_task_create(
       led_task, NULL, led_stack, TASK_STACK_WORDS, DEFAULT_PRIORITY);
@@ -252,7 +221,7 @@ int main(void) {
     for (;;) {
     }
 
-  setup_button();
+  board_button_init(button_event_isr);
   artos_start();
 
   // Just in case

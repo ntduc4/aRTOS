@@ -1,4 +1,4 @@
-#include "demos/common/demo_board.h"
+#include "boards/board.h"
 #include "rtos.h"
 #include "rtos_diagnostics.h"
 
@@ -32,7 +32,7 @@ static void low_task(void *argument) {
     }
   }
 
-  demo_uart_write_string("LOW acquired mutex at base priority 0\n");
+  board_uart_write_string("LOW acquired mutex at base priority 0\n");
   uint32_t start_tick = artos_get_tick();
   bool inheritance_reported = false;
 
@@ -46,18 +46,18 @@ static void low_task(void *argument) {
         artos_get_tick() - start_tick >= ARTOS_MS_TO_TICKS(200U)) {
       artos_task_info_t info;
       if (artos_task_get_info(LOW_TASK_INDEX, &info)) {
-        demo_uart_write_string("LOW while HIGH waits: base=");
-        demo_uart_write_uint(info.base_priority);
-        demo_uart_write_string(", effective=");
-        demo_uart_write_uint(info.effective_priority);
-        demo_uart_write_char('\n');
+        board_uart_write_string("LOW while HIGH waits: base=");
+        board_uart_write_uint(info.base_priority);
+        board_uart_write_string(", effective=");
+        board_uart_write_uint(info.effective_priority);
+        board_uart_write_char('\n');
       }
       inheritance_reported = true;
     }
   }
 
   (void)artos_mutex_unlock(mutex);
-  demo_uart_write_string("LOW released mutex; inherited priority restored\n");
+  board_uart_write_string("LOW released mutex; inherited priority restored\n");
 
   for (;;)
     artos_wait(ARTOS_DELAY_INFINITY);
@@ -79,17 +79,17 @@ static void high_task(void *argument) {
   (void)argument;
   artos_wait(ARTOS_MS_TO_TICKS(100U));
 
-  demo_uart_write_string("HIGH waiting for mutex at priority 1\n");
+  board_uart_write_string("HIGH waiting for mutex at priority 1\n");
   if (!artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
     for (;;) {
     }
   }
 
-  demo_led_set(true);
-  demo_uart_write_string("HIGH received mutex directly from LOW\n");
-  demo_uart_write_string("Background rounds before handoff: ");
-  demo_uart_write_uint(interferer_rounds);
-  demo_uart_write_char('\n');
+  board_led_set(true);
+  board_uart_write_string("HIGH received mutex directly from LOW\n");
+  board_uart_write_string("Background rounds before handoff: ");
+  board_uart_write_uint(interferer_rounds);
+  board_uart_write_char('\n');
   (void)artos_mutex_unlock(mutex);
 
   for (;;)
@@ -106,7 +106,7 @@ static void create_task_or_halt(artos_task_fn_t entry,
 }
 
 int main(void) {
-  demo_board_init();
+  board_init();
   artos_init();
 
   mutex = artos_mutex_init(&mutex_storage);
@@ -115,8 +115,8 @@ int main(void) {
     }
   }
 
-  demo_uart_write_string("aRTOS mutex priority-inheritance demo\n");
-  demo_uart_write_string("LOW owns the mutex before HIGH wakes; the background "
+  board_uart_write_string("aRTOS mutex priority-inheritance demo\n");
+  board_uart_write_string("LOW owns the mutex before HIGH wakes; the background "
                          "task stays ready.\n");
 
   create_task_or_halt(low_task, low_stack, LOW_PRIORITY);
