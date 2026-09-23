@@ -31,6 +31,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
 
+      - name: Prepare documentation output directory
+        run: mkdir -p build/doxygen
+
       - name: Build Doxygen documentation
         uses: mattnotmitt/doxygen-action@d0611355db0576096a207983d1a7c7af91f44017 # 1.12.0
         with:
