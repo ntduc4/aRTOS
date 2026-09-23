@@ -9,6 +9,8 @@ communication on real microcontrollers.
 implemented. The repository may receive fixes and small improvements, but no
 new features or architecture ports are promised.
 
+API documentation is available at [ntduc4.github.io/aRTOS](https://ntduc4.github.io/aRTOS/).
+
 The repository currently provides a device-header-independent Cortex-M4F port,
 demonstrated on the STM32F446RE and STM32L4S5I. Another Cortex-M4F device can
 reuse the port by supplying compatible startup code, vector-table entries,
