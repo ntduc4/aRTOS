@@ -70,8 +70,8 @@
 - [x] Run the complete demo for at least 10 minutes without failure `[C]`
 
 ## Week 12: Polish, Final Demo, and Documentation
-- [ ] Polish APIs, naming, and low-level documentation; verify the full workflow `[C]`
-- [ ] Finalize the README with architecture, scheduling, and synchronization notes `[C]`
+- [x] Polish APIs, naming, and low-level documentation; verify the full workflow `[C]`
+- [x] Finalize the README with architecture, scheduling, and synchronization notes `[C]`
 - [ ] Run the final reliability test and tag the release `[C]`
 - [x] Make the Cortex-M4F port device-header-independent: remove `core_cm4.h` and `stm32f446xx.h`, then use ARM-defined System Control Space register addresses and masks for SysTick, PendSV, SCB, and FPU operations `[S]`
 - [ ] Move device integration into application configuration: provide the CPU/SysTick clock values, connect SVC/PendSV/SysTick/HardFault in the vector table, and compile the same port against a second Cortex-M4F target `[S]`
