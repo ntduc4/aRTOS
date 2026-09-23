@@ -5,11 +5,17 @@ amount of port-specific assembly.** It demonstrates the mechanics behind task
 scheduling, context switching, blocking, synchronization, and interrupt-safe
 communication on real microcontrollers.
 
+**Project status:** Complete. The planned educational scope has been
+implemented. The repository may receive fixes and small improvements, but no
+new features or architecture ports are promised.
+
 The repository currently provides a device-header-independent Cortex-M4F port,
-demonstrated on the STM32F446RE and Nucleo-F446RE board. Another Cortex-M4F
-device can reuse the port by supplying compatible startup code, vector-table
-entries, clock configuration, CMSIS compiler intrinsics, and build integration.
-Another architecture requires a new implementation of the port interface.
+demonstrated on the STM32F446RE and STM32L4S5I. Another Cortex-M4F device can
+reuse the port by supplying compatible startup code, vector-table entries,
+clock configuration, CMSIS compiler intrinsics, board integration, and build
+configuration. A board using a different architecture requires its own port
+implementation. See `src/rtos/ports/cortex-m4f/` for the interface and existing
+implementation.
 Every task stack, task control block, semaphore, queue control block, and queue
 buffer has fixed storage. The kernel never calls `malloc`, `calloc`, or `free`,
 so memory usage is explicit and bounded before the scheduler starts.
@@ -432,8 +438,10 @@ test/
   test_kernel/           Deterministic list and nonblocking kernel API tests
   test_kernel_runtime/   Live scheduling and synchronization tests
   test_rtos_port/        Unity tests for port-level stack initialization
+CODE_OF_CONDUCT.md        Community behavior expectations
+CONTRIBUTING.md           Contribution and review guidelines
 Doxyfile                 Public API documentation configuration
-TODO.md                  Milestones and planned work
+TODO.md                  Project milestone history
 platformio.ini           PlatformIO build and test environments
 ```
 
@@ -453,15 +461,20 @@ Implemented:
 - Assertions, retained failure information, and HardFault state capture
 - Idle sleep through `WFI`
 
-Not yet implemented:
+Intentionally outside the completed project scope:
 
-- Configurable preemption and time-slicing policies
 - Recursive mutexes and transitive priority-inheritance propagation
 - True historical stack-watermark reporting
 - Retained-record validity markers and production-level diagnostics
 - Additional architecture ports
 
-See `TODO.md` for the complete milestone history and roadmap.
+See `TODO.md` for the completed milestone history.
+
+## Contributing
+
+Small fixes, documentation improvements, and focused enhancements are welcome.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request.
+Participation is subject to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Tests
 

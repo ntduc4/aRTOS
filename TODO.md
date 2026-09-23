@@ -50,7 +50,6 @@
 - [x] Verify the complete LED, heartbeat, button, logger, and load-task demo `[C]`
 
 ## Week 9: Optional Priority Scheduling
-- [ ] Add compile-time scheduling configuration (max priorities, preemption, time slicing), FreeRTOS-style `[S]`
 - [x] Extend task creation and the TCB with a priority field `[S]`
 - [x] Implement highest-priority-ready selection with round-robin among equal priorities `[S]`
 - [x] Add optional O(1) selection via ready mask + count-leading-zeros instead of a flat scan `[S]`
@@ -74,7 +73,7 @@
 - [x] Finalize the README with architecture, scheduling, and synchronization notes `[C]`
 - [ ] Run the final reliability test and tag the release `[C]`
 - [x] Make the Cortex-M4F port device-header-independent: remove `core_cm4.h` and `stm32f446xx.h`, then use ARM-defined System Control Space register addresses and masks for SysTick, PendSV, SCB, and FPU operations `[S]`
-- [ ] Move device integration into application configuration: provide the CPU/SysTick clock values, connect SVC/PendSV/SysTick/HardFault in the vector table, and compile the same port against a second Cortex-M4F target `[S]`
+- [x] Move device integration into application configuration: provide the CPU/SysTick clock values, connect SVC/PendSV/SysTick/HardFault in the vector table, and compile the same port against a second Cortex-M4F target `[S]`
 
 ---
 
