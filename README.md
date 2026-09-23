@@ -253,7 +253,8 @@ demonstrates FIFO round-robin scheduling among equal-priority tasks.
 
 The blue user button on PC13 is handled by EXTI with a 50 ms software debounce.
 Each accepted event is copied into both queues from the ISR. USART2 runs at
-115200 baud and is protected by a binary semaphore so each row remains intact.
+115200 baud on the Nucleo-F446RE. The selected board UART is protected by a
+binary semaphore so each row remains intact.
 
 Example output:
 
@@ -264,6 +265,13 @@ TASK    EVENT           MSG     CREATED RECEIVED        DETAIL
 C1      HEARTBEAT       #1      created=@0      received=@0     age=0
 BUTTON-ONLY     BUTTON  #1      created=@1537   received=@1537  age=0
 ```
+
+The mutex demo uses the LED to make its one-shot sequence visible. HIGH
+slow-blinks for three seconds, then sleeps so LOW can acquire the mutex. LOW
+fast-blinks while holding the mutex for five seconds. When HIGH wakes and waits
+for that mutex, LOW reports base priority `0` and inherited effective priority
+`1`. Ownership is handed directly to HIGH, which slow-blinks for three more
+seconds before turning off the LED and completing the demo.
 
 The STM32L4S5I board implementation switches the B-L4S5I-IOT01A from its reset
 MSI clock to the 16 MHz HSI clock before starting the kernel, matching

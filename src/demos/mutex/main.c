@@ -14,15 +14,40 @@ enum {
 
 static artos_stack_word_t low_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
-static artos_stack_word_t interferer_stack[TASK_STACK_WORDS]
-    __attribute__((aligned(8)));
 static artos_stack_word_t high_stack[TASK_STACK_WORDS]
     __attribute__((aligned(8)));
 
 static artos_mutex_storage_t mutex_storage;
 static artos_mutex_t *mutex;
-static volatile uint32_t work_sink;
-static volatile uint32_t interferer_rounds;
+
+static void blink_with_delay(uint32_t duration_ms, uint32_t interval_ms) {
+  uint32_t start_tick = artos_get_tick();
+  bool led_enabled = false;
+
+  while (artos_get_tick() - start_tick < ARTOS_MS_TO_TICKS(duration_ms)) {
+    led_enabled = !led_enabled;
+    board_led_set(led_enabled);
+    artos_wait(ARTOS_MS_TO_TICKS(interval_ms));
+  }
+
+  board_led_set(false);
+}
+
+static void high_priority_busy_blink(void) {
+  uint32_t start_tick = artos_get_tick();
+  uint32_t next_toggle = start_tick + ARTOS_MS_TO_TICKS(500U);
+  bool led_enabled = false;
+
+  while (artos_get_tick() - start_tick < ARTOS_MS_TO_TICKS(3000U)) {
+    if (artos_get_tick() >= next_toggle) {
+      led_enabled = !led_enabled;
+      board_led_set(led_enabled);
+      next_toggle += ARTOS_MS_TO_TICKS(500U);
+    }
+  }
+
+  board_led_set(false);
+}
 
 static void low_task(void *argument) {
   (void)argument;
@@ -32,18 +57,19 @@ static void low_task(void *argument) {
     }
   }
 
-  board_uart_write_string("LOW acquired mutex at base priority 0\n");
+  board_uart_write_string(
+      "LOW acquired mutex and will fast-blink for five seconds\n");
   uint32_t start_tick = artos_get_tick();
   bool inheritance_reported = false;
+  bool led_enabled = false;
 
-  while (artos_get_tick() - start_tick < ARTOS_MS_TO_TICKS(1000U)) {
-    uint32_t value = work_sink;
-    for (uint32_t i = 0U; i < 2000U; i++)
-      value = value * 1664525U + 1013904223U;
-    work_sink = value;
+  while (artos_get_tick() - start_tick < ARTOS_MS_TO_TICKS(5000U)) {
+    led_enabled = !led_enabled;
+    board_led_set(led_enabled);
+    artos_wait(ARTOS_MS_TO_TICKS(100U));
 
     if (!inheritance_reported &&
-        artos_get_tick() - start_tick >= ARTOS_MS_TO_TICKS(200U)) {
+        artos_get_tick() - start_tick >= ARTOS_MS_TO_TICKS(1500U)) {
       artos_task_info_t info;
       if (artos_task_get_info(LOW_TASK_INDEX, &info)) {
         board_uart_write_string("LOW while HIGH waits: base=");
@@ -56,28 +82,22 @@ static void low_task(void *argument) {
     }
   }
 
+  board_led_set(false);
+  board_uart_write_string("LOW releasing mutex; inherited priority restored\n");
   (void)artos_mutex_unlock(mutex);
-  board_uart_write_string("LOW released mutex; inherited priority restored\n");
 
   for (;;)
     artos_wait(ARTOS_DELAY_INFINITY);
 }
 
-static void interferer_task(void *argument) {
-  (void)argument;
-  for (;;) {
-    uint32_t value = work_sink;
-    for (uint32_t i = 0U; i < 2000U; i++)
-      value = value * 1103515245U + 12345U;
-    work_sink = value;
-    interferer_rounds++;
-    artos_yield();
-  }
-}
-
 static void high_task(void *argument) {
   (void)argument;
-  artos_wait(ARTOS_MS_TO_TICKS(100U));
+
+  board_uart_write_string("HIGH slow-blinking for three seconds\n");
+  high_priority_busy_blink();
+
+  board_uart_write_string("HIGH sleeping so LOW can acquire the mutex\n");
+  artos_wait(ARTOS_MS_TO_TICKS(1000U));
 
   board_uart_write_string("HIGH waiting for mutex at priority 1\n");
   if (!artos_mutex_lock(mutex, ARTOS_DELAY_INFINITY)) {
@@ -85,12 +105,11 @@ static void high_task(void *argument) {
     }
   }
 
-  board_led_set(true);
   board_uart_write_string("HIGH received mutex directly from LOW\n");
-  board_uart_write_string("Background rounds before handoff: ");
-  board_uart_write_uint(interferer_rounds);
-  board_uart_write_char('\n');
+  board_uart_write_string("HIGH slow-blinking for three seconds with mutex\n");
+  blink_with_delay(3000U, 500U);
   (void)artos_mutex_unlock(mutex);
+  board_uart_write_string("Mutex demo complete\n");
 
   for (;;)
     artos_wait(ARTOS_DELAY_INFINITY);
@@ -116,11 +135,10 @@ int main(void) {
   }
 
   board_uart_write_string("aRTOS mutex priority-inheritance demo\n");
-  board_uart_write_string("LOW owns the mutex before HIGH wakes; the background "
-                         "task stays ready.\n");
+  board_uart_write_string(
+      "HIGH runs first, then sleeps so LOW can acquire the mutex.\n");
 
   create_task_or_halt(low_task, low_stack, LOW_PRIORITY);
-  create_task_or_halt(interferer_task, interferer_stack, LOW_PRIORITY);
   create_task_or_halt(high_task, high_stack, HIGH_PRIORITY);
 
   (void)artos_start();
