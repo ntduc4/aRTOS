@@ -1,0 +1,51 @@
+name: Publish documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/docs.yml
+      - Doxyfile
+      - README.md
+      - include/**
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Build Doxygen documentation
+        uses: mattnotmitt/doxygen-action@d0611355db0576096a207983d1a7c7af91f44017 # 1.12.0
+        with:
+          doxyfile-path: Doxyfile
+          enable-latex: false
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Upload documentation
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: build/doxygen/html
+          retention-days: 1
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
